@@ -13,3 +13,4 @@ pip install -r requirements.txt | Out-Null
 
 Write-Host "Lancement de Disney Infinity Creator (PySide6)..." -ForegroundColor Cyan
 python src/main.py
+exit 
