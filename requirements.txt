@@ -1,7 +1,6 @@
-﻿customtkinter
+customtkinter
 moderngl
 numpy
 Pillow
 trimesh
-pyglet
 scipy

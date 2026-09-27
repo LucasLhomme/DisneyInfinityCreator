@@ -1,0 +1,959 @@
+{
+ "0026f964cf389ac261707c92d3a33c0d": {
+  "record_size": 688,
+  "samples": 1,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "0193319675fed203b4ec4d31c001282f": {
+  "record_size": 672,
+  "samples": 1,
+  "texture_offset": 576,
+  "texture_slots": 5
+ },
+ "03e83d5f374318a71bd3cd4ae3f5c639": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "06480cd2214a1623458f2a202e37ef0c": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "0784bdb690b8cdf5f503e0750edbd70f": {
+  "record_size": 672,
+  "samples": 3,
+  "texture_offset": 576,
+  "texture_slots": 5
+ },
+ "09e5484fa0775ae8ae027412825c07f2": {
+  "record_size": 160,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "0bff7cd268018817d100cf6de81c28b3": {
+  "record_size": 128,
+  "samples": 2,
+  "texture_offset": 32,
+  "texture_slots": 3
+ },
+ "0e397c38fd9376a8dfdca88021510681": {
+  "record_size": 192,
+  "samples": 1,
+  "texture_offset": 80,
+  "texture_slots": 4
+ },
+ "0f07934d1396efa1a0e5d84cc797fd80": {
+  "record_size": 128,
+  "samples": 4,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "0f34fb1b290d55fa6b851cb8abafa020": {
+  "record_size": 144,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "10502e03170a4d061182ffd6359d527a": {
+  "record_size": 176,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "116116baa19666a7ddbd93c6a32509a3": {
+  "record_size": 192,
+  "samples": 26,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "11f107a598e2171aca8efac7b467f14b": {
+  "record_size": 624,
+  "samples": 1,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "134f8d04fbc22a2834b4bac3e8ae7793": {
+  "record_size": 128,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "158f9e76d4dc5d5f0d01b2290add9d60": {
+  "record_size": 192,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "17056371b64accd5d23cb75cee12f499": {
+  "record_size": 656,
+  "samples": 8,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "17d669ae0f055893e3cc443b98837d24": {
+  "record_size": 176,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 4
+ },
+ "182aefdd7b4681ad163d0879b949791b": {
+  "record_size": 192,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 5
+ },
+ "1a6a40131b1fd773dd0b7a1b111c9eea": {
+  "record_size": 144,
+  "samples": 7,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "1bf0de485086e6dbd93c574ed3368d5a": {
+  "record_size": 144,
+  "samples": 5,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "1c739587c8174cf38d970d521d6191f7": {
+  "record_size": 80,
+  "samples": 2,
+  "texture_offset": 32,
+  "texture_slots": 1
+ },
+ "1cb3fbe5f1908f3c4d6007273a77df5e": {
+  "record_size": 656,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 5
+ },
+ "1d1d371a7f661fa8c1d02948b39dc8eb": {
+  "record_size": 80,
+  "samples": 2,
+  "texture_offset": 32,
+  "texture_slots": 2
+ },
+ "1df4710d6ead1701c72933d77ff28f41": {
+  "record_size": 144,
+  "samples": 83,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "1e52e2f2f780e7329d6771357f073e6c": {
+  "record_size": 144,
+  "samples": 16,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "23449c84661eabcccf260bce997ac9ff": {
+  "record_size": 224,
+  "samples": 1,
+  "texture_offset": 32,
+  "texture_slots": 7
+ },
+ "25bf03fe397ca69b1c91b0058903bbe0": {
+  "record_size": 144,
+  "samples": 2,
+  "texture_offset": 80,
+  "texture_slots": 3
+ },
+ "29f01efc15dbb862cfd5fa03bfdb8af1": {
+  "record_size": 144,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 3
+ },
+ "2ac526594ae79793552a923c0c70258d": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 5
+ },
+ "2b80588551a44b90b61970f9de1a4208": {
+  "record_size": 624,
+  "samples": 20,
+  "texture_offset": 528,
+  "texture_slots": 1
+ },
+ "313239c4f549c9639a3660c99e6be6aa": {
+  "record_size": 224,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "330b26c49c52a5c752b9e1717c916179": {
+  "record_size": 256,
+  "samples": 1,
+  "texture_offset": 32,
+  "texture_slots": 6
+ },
+ "33b0435f63fdd04bdc96f246ef20688f": {
+  "record_size": 672,
+  "samples": 4,
+  "texture_offset": 544,
+  "texture_slots": 6
+ },
+ "3455699aba3dafeadc3300eb73e8a38e": {
+  "record_size": 112,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "359efc74066a84fcbe618b8c2eac4315": {
+  "record_size": 640,
+  "samples": 2,
+  "texture_offset": 544,
+  "texture_slots": 5
+ },
+ "393b885e2d8eb3295949992470d32d69": {
+  "record_size": 144,
+  "samples": 3,
+  "texture_offset": 64,
+  "texture_slots": 2
+ },
+ "3991f210b4282015f8243303944d17c6": {
+  "record_size": 128,
+  "samples": 27,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "3b333ab9c41739de015daf3f77d17959": {
+  "record_size": 224,
+  "samples": 24,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "3e53977df475a8a9830f9192c202af93": {
+  "record_size": 176,
+  "samples": 7,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "4338b0a88520126578a8815cc11ad602": {
+  "record_size": 240,
+  "samples": 11,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "46454fd95ade58273542383748d00678": {
+  "record_size": 624,
+  "samples": 10,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "46b4de5dad01c78c6a0167eb144a4ff1": {
+  "record_size": 144,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 3
+ },
+ "48a67a78d3749b0d3d61434de0abcc55": {
+  "record_size": 128,
+  "samples": 25,
+  "texture_offset": 64,
+  "texture_slots": 2
+ },
+ "48ad97227e06177b402de254db7b2b85": {
+  "record_size": 176,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "491519f6782493b95ef518090c37f057": {
+  "record_size": 128,
+  "samples": 6,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "493085fd4ce4c00eab9fa8417d45dd74": {
+  "record_size": 624,
+  "samples": 1,
+  "texture_offset": 0,
+  "texture_slots": 8
+ },
+ "4a03cbb421c4885a7244eca845389d01": {
+  "record_size": 144,
+  "samples": 30,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "4a7e18f142ad259f18ccc425d18d585f": {
+  "record_size": 144,
+  "samples": 9,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "4bcb5ce653186b6c065744b06dc81336": {
+  "record_size": 128,
+  "samples": 1350,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "4cfd0901740fea14f51a73f19a7617a7": {
+  "record_size": 144,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "4d24f4bc67b9140800acf78a66c83650": {
+  "record_size": 144,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "4de0fe90fb89ad1cb013237e85dac5b1": {
+  "record_size": 144,
+  "samples": 4,
+  "texture_offset": 64,
+  "texture_slots": 2
+ },
+ "4df14424709a89812daa58def8e96f3b": {
+  "record_size": 144,
+  "samples": 32,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "50b760a9410dd56224b43264fac7c4a0": {
+  "record_size": 176,
+  "samples": 22,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "50b974e67cf2ab9435e5f0f28453c8dc": {
+  "record_size": 144,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "52a99f10547c2d1a25b13b20cea2a18a": {
+  "record_size": 96,
+  "samples": 4,
+  "texture_offset": 32,
+  "texture_slots": 6
+ },
+ "5417f9a6af73547ca4b9df76ef820bcf": {
+  "record_size": 176,
+  "samples": 12,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "54832ff29af2471432989fde82d892d5": {
+  "record_size": 176,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "557e0a924bf42a379a1b1d9f03c332d4": {
+  "record_size": 240,
+  "samples": 3,
+  "texture_offset": 80,
+  "texture_slots": 5
+ },
+ "5be33c0b25b1329f8d3146e2fe5dd68b": {
+  "record_size": 240,
+  "samples": 1,
+  "texture_offset": 80,
+  "texture_slots": 5
+ },
+ "5be5434038c377b9ebc4810bcfb6a694": {
+  "record_size": 288,
+  "samples": 3,
+  "texture_offset": 176,
+  "texture_slots": 2
+ },
+ "5dae0169ccc97f340b450c78afbcae1e": {
+  "record_size": 224,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "6489bba4cb824641541a06658a3df182": {
+  "record_size": 96,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 6
+ },
+ "66588714a78c894ef8839a4c1f26003f": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 32,
+  "texture_slots": 4
+ },
+ "66d8c8cc0f47f0cad4de279fd3c32b6e": {
+  "record_size": 192,
+  "samples": 1,
+  "texture_offset": 80,
+  "texture_slots": 4
+ },
+ "676363f4373bbf92d6bed7c137fc1c6b": {
+  "record_size": 176,
+  "samples": 5,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "68827f95aadb5450bb6e52c9864773e1": {
+  "record_size": 272,
+  "samples": 1,
+  "texture_offset": 32,
+  "texture_slots": 8
+ },
+ "6a37cf2aacde389224dfd07f79bf5b3c": {
+  "record_size": 192,
+  "samples": 4,
+  "texture_offset": 80,
+  "texture_slots": 4
+ },
+ "6aad79b97063ca4f684bbee1e8add808": {
+  "record_size": 176,
+  "samples": 3,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "6b11b4268126b57c5ed5c3e2520944bd": {
+  "record_size": 624,
+  "samples": 4,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "6cde07e9c11ed7894e077144be8309aa": {
+  "record_size": 176,
+  "samples": 15,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "711bc57362478103eb12a2a4b7c663ed": {
+  "record_size": 128,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "737bc847814f5d8948ed4a8a2ad0ebb1": {
+  "record_size": 176,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "74ce83e86c93d852b42007c2815eb7f6": {
+  "record_size": 656,
+  "samples": 2,
+  "texture_offset": 560,
+  "texture_slots": 5
+ },
+ "769bce4ad599704e993be06ca2686213": {
+  "record_size": 192,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "77901c1081e7244c7625d463c89d14eb": {
+  "record_size": 352,
+  "samples": 19,
+  "texture_offset": 240,
+  "texture_slots": 3
+ },
+ "77d9a83fd7143a7ced09c1f6f6c115d2": {
+  "record_size": 128,
+  "samples": 14,
+  "texture_offset": 64,
+  "texture_slots": 2
+ },
+ "78cfc6097de54c6c2fb509a90abc225e": {
+  "record_size": 688,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 5
+ },
+ "7e7f6ba91d70c84e7ec81328b5d43a2b": {
+  "record_size": 368,
+  "samples": 1,
+  "texture_offset": 240,
+  "texture_slots": 3
+ },
+ "7ec6c9501c07a765e57a5d356c888b38": {
+  "record_size": 608,
+  "samples": 5,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "81266082608b5ecd58f7f6176d4e82d1": {
+  "record_size": 160,
+  "samples": 4,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "83017ab063cc7e86ebd12f30343c49d5": {
+  "record_size": 640,
+  "samples": 1,
+  "texture_offset": 0,
+  "texture_slots": 8
+ },
+ "84bc6ecc3e096480a776bc52782b7983": {
+  "record_size": 176,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "85213b1557ab0cfb9d3f4c8daf61d12c": {
+  "record_size": 336,
+  "samples": 3,
+  "texture_offset": 224,
+  "texture_slots": 3
+ },
+ "857473af91b6c775e7da7ba0024673ae": {
+  "record_size": 176,
+  "samples": 63,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "87c4ca4338950591a0099e53b07a4e41": {
+  "record_size": 144,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "88c83eaf81fab792644095902a2df658": {
+  "record_size": 128,
+  "samples": 16,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "8b57eb8fdd8ff020921b7cc3e8e62ff3": {
+  "record_size": 192,
+  "samples": 1,
+  "texture_offset": 80,
+  "texture_slots": 4
+ },
+ "8d4e835d71f79e3791649b75f2cf08bb": {
+  "record_size": 112,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 4
+ },
+ "8df50ef68398ba35905b1d33dffe0059": {
+  "record_size": 176,
+  "samples": 6,
+  "texture_offset": 48,
+  "texture_slots": 4
+ },
+ "8e8b548333908cf49f09df2ab703af82": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 4
+ },
+ "9043643c99a8e73504f97f41c4aa37ba": {
+  "record_size": 240,
+  "samples": 9,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "911f228974b8d0340e0d322248e5200f": {
+  "record_size": 304
+ },
+ "92160c3eca34768b6672b13976c41dbc": {
+  "record_size": 656,
+  "samples": 6,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "95a5003d074a217b04f98725eca4a9ba": {
+  "record_size": 128,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "962ff05bf36f816a841578ccb61aaa90": {
+  "record_size": 144,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "963849a46ef09d0e823daffc80e8953b": {
+  "record_size": 128,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "9746e20ce1f6aeaaa714c31769d7afa1": {
+  "record_size": 624,
+  "samples": 13,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "97c217052d200d41aa535eff38cc78a5": {
+  "record_size": 192,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "99755f55829257acc18b6673aefaa933": {
+  "record_size": 144,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "99da52c7fa4a8b916fc06faedd5e5575": {
+  "record_size": 112,
+  "samples": 8,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "9b9b27f1461d08adf1dccdf522467a5f": {
+  "record_size": 128,
+  "samples": 159,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "9bf23288daf8d4284d001525a2d853ac": {
+  "record_size": 48,
+  "samples": 40,
+  "texture_offset": 32,
+  "texture_slots": 2
+ },
+ "9c06733e7f267dbb472c69969e066648": {
+  "record_size": 224,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "9e996b3e1d23cece07ac425e60b5fea6": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "9f582a443d7cdc773c647704d827e589": {
+  "record_size": 144,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "a0e8555a043145d7c7c587d1d1d587c9": {
+  "record_size": 240,
+  "samples": 10,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "a30fcfc3115b2a3c28f776d6a2822c97": {
+  "record_size": 176,
+  "samples": 3,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "a38eb9b60e272f465f5654ca25e31b7d": {
+  "record_size": 112,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "a3f843b12c27b45b3a823e4b6ebdc040": {
+  "record_size": 656,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 5
+ },
+ "a56acbcd9ebe082078d3ac627c107608": {
+  "record_size": 224,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 4
+ },
+ "a64c9c97450a0df7a1fb0f63dba76f81": {
+  "record_size": 224,
+  "samples": 20,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "aad3387f7023285a6811af45c8332f27": {
+  "record_size": 640,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 5
+ },
+ "abfd64e756de9b48eed838c1be09e30e": {
+  "record_size": 112,
+  "samples": 1,
+  "texture_offset": 16,
+  "texture_slots": 2
+ },
+ "ad8e2e244ffe5fd2c4905e3898d2aaa8": {
+  "record_size": 720,
+  "samples": 2,
+  "texture_offset": 528,
+  "texture_slots": 5
+ },
+ "ae2fe9d21a738d903a09fb9cd354e158": {
+  "record_size": 160,
+  "samples": 5,
+  "texture_offset": 48,
+  "texture_slots": 4
+ },
+ "af109dc2e274f05be113cb534586fa49": {
+  "record_size": 224,
+  "samples": 8,
+  "texture_offset": 48,
+  "texture_slots": 5
+ },
+ "af274b57cf2b666bcea438068b810950": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "b025d2fc312396f722ca9a622f6f81c1": {
+  "record_size": 112,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "b06448210de35f621e1b9a5224d87df3": {
+  "record_size": 192,
+  "samples": 19,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "b1103da9a209454e068ff8e3fdc5cabb": {
+  "record_size": 608,
+  "samples": 1,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "b3774e4bf3a72ce7401a2851894bb9a6": {
+  "record_size": 192,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "b822250612b67572691e6c56252c4185": {
+  "record_size": 624,
+  "samples": 1,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "bc14e7fd701482bf9224153616cb8b2a": {
+  "record_size": 656,
+  "samples": 2,
+  "texture_offset": 560,
+  "texture_slots": 5
+ },
+ "bc289c1827ff364812473194108b9c8d": {
+  "record_size": 80,
+  "samples": 10,
+  "texture_offset": 32,
+  "texture_slots": 6
+ },
+ "bcfcc2da3ffdb1bc64941a10d7ab28d4": {
+  "record_size": 144,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "bd1796b4f57d5ce88fca01048e334085": {
+  "record_size": 208,
+  "samples": 11,
+  "texture_offset": 64,
+  "texture_slots": 5
+ },
+ "bd1aca7d43a86c4fd3c1df749610d9a1": {
+  "record_size": 176,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "bf4eaa20d2c49e3f3c3d71de820cd105": {
+  "record_size": 640,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 2
+ },
+ "c2a2fe0e9ed2f67d7831a1c086f4d42e": {
+  "record_size": 352,
+  "samples": 4,
+  "texture_offset": 224,
+  "texture_slots": 5
+ },
+ "c60eec9151be0a4965ec90195aaae260": {
+  "record_size": 704,
+  "samples": 6,
+  "texture_offset": 560,
+  "texture_slots": 4
+ },
+ "c98e8198d428d67f06fc3e83b3872e59": {
+  "record_size": 208,
+  "samples": 1,
+  "texture_offset": 96,
+  "texture_slots": 3
+ },
+ "cb59fcb7dbb4a9df61053dba158c0e9a": {
+  "record_size": 640,
+  "samples": 1,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "cd1f2653d48ca09115876636841b6f2e": {
+  "record_size": 208,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 5
+ },
+ "ce58a09fd5b418fd57e57869044aed91": {
+  "record_size": 176,
+  "samples": 57,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "d048d6039edfc4900c3de8fbd74c0ce3": {
+  "record_size": 240,
+  "samples": 4,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "d2f726146191e1ac4c5f8b4fe41dbd5f": {
+  "record_size": 192,
+  "samples": 16,
+  "texture_offset": 80,
+  "texture_slots": 4
+ },
+ "d834545e21f1e62d8b94ba0e4be4b87c": {
+  "record_size": 144,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "d8b8693e151e08d8563cec9746bcb3ca": {
+  "record_size": 272,
+  "samples": 2,
+  "texture_offset": 32,
+  "texture_slots": 7
+ },
+ "d8ceca5a044fb192eb50aa4d3a917669": {
+  "record_size": 720,
+  "samples": 1,
+  "texture_offset": 576,
+  "texture_slots": 6
+ },
+ "d9238ca77866005e9785d85157f58c54": {
+  "record_size": 304,
+  "samples": 2,
+  "texture_offset": 64,
+  "texture_slots": 8
+ },
+ "d97c9aa9452380a80fd7caac185ce66f": {
+  "record_size": 224,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 6
+ },
+ "da0468313fb0df018bf21a0a64244be8": {
+  "record_size": 224,
+  "samples": 1,
+  "texture_offset": 32,
+  "texture_slots": 8
+ },
+ "db9316e6efdc8990f277bd649d7c183e": {
+  "record_size": 160
+ },
+ "dfe427846fd31db377df7a6775154411": {
+  "record_size": 144,
+  "samples": 4,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "e260075c81acd560fa535d95fc1be99e": {
+  "record_size": 736,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 6
+ },
+ "e27b2b27750ef4c36a2707346f259ad7": {
+  "record_size": 640,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 5
+ },
+ "e2d1727aff6396de05f45bfe3cca95d0": {
+  "record_size": 144,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "e3486c58a4a42bf6d422eff6119ed868": {
+  "record_size": 192,
+  "samples": 1,
+  "texture_offset": 48,
+  "texture_slots": 5
+ },
+ "e82a02303c1c4141226cd1d09ac7ceb8": {
+  "record_size": 608,
+  "samples": 4,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "ea54de62b06761f3302f912377379866": {
+  "record_size": 144,
+  "samples": 6,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "ebaca0faff5d7170326005e943425053": {
+  "record_size": 640,
+  "samples": 1,
+  "texture_offset": 544,
+  "texture_slots": 5
+ },
+ "edfaca126c09d075f0462d4ae340cf7c": {
+  "record_size": 176,
+  "samples": 2,
+  "texture_offset": 48,
+  "texture_slots": 2
+ },
+ "ef50dc69baf8b6bc1553299c49ee8dc4": {
+  "record_size": 80,
+  "samples": 3,
+  "texture_offset": 32,
+  "texture_slots": 1
+ },
+ "efab98da81d5fd024f6a7dd81d999a35": {
+  "record_size": 656,
+  "samples": 2,
+  "texture_offset": 528,
+  "texture_slots": 2
+ },
+ "f058e8a4c33e9daffbfedad3e42f20ae": {
+  "record_size": 144,
+  "samples": 1,
+  "texture_offset": 64,
+  "texture_slots": 4
+ },
+ "f2f577e503b81396f14e8714b834cca9": {
+  "record_size": 144,
+  "samples": 3,
+  "texture_offset": 48,
+  "texture_slots": 3
+ },
+ "f9c6039c93ece5228af9b948248037a7": {
+  "record_size": 96,
+  "samples": 2,
+  "texture_offset": 32,
+  "texture_slots": 1
+ },
+ "fad8109c6456b5d3a082c932ddf4e9c0": {
+  "record_size": 96
+ },
+ "fd07a7961b36025a28f6dd1bf47202a6": {
+  "record_size": 224,
+  "samples": 3,
+  "texture_offset": 80,
+  "texture_slots": 5
+ },
+ "fef33122431c4e413d4a2294e4539be3": {
+  "record_size": 176,
+  "samples": 17,
+  "texture_offset": 48,
+  "texture_slots": 3
+ }
+}

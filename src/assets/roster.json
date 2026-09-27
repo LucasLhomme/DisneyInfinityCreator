@@ -1,0 +1,893 @@
+[
+ {
+  "actor": "AVG_CaptainAmerica",
+  "display_name": "Captain America",
+  "sku": "1000100",
+  "icon": "HUD_PlayerIcons_CaptainAmerica",
+  "progression_tree": "IN2_AVG_CaptainAmerica",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_CaptainAmerica.dnax"
+ },
+ {
+  "actor": "AVG_Hulk",
+  "display_name": "Hulk",
+  "sku": "1000101",
+  "icon": "HUD_PlayerIcons_Hulk",
+  "progression_tree": "IN2_AVG_Hulk",
+  "franchise": "Avengers",
+  "dnax": "characters/avg_hulk.dnax"
+ },
+ {
+  "actor": "AVG_IronMan",
+  "display_name": "Iron Man",
+  "sku": "1000102",
+  "icon": "HUD_PlayerIcons_IronMan",
+  "progression_tree": "IN2_AVG_IronMan",
+  "franchise": "Avengers",
+  "dnax": "characters/avg_ironman.dnax"
+ },
+ {
+  "actor": "AVG_Thor",
+  "display_name": "Thor",
+  "sku": "1000103",
+  "icon": "HUD_PlayerIcons_Thor",
+  "progression_tree": "IN2_AVG_Thor",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_Thor.dnax"
+ },
+ {
+  "actor": "AVG_BlackWidow",
+  "display_name": "Black Widow",
+  "sku": "1000109",
+  "icon": "HUD_PlayerIcons_BlackWidow",
+  "progression_tree": "IN2_AVG_BlackWidow",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_BlackWidow.dnax"
+ },
+ {
+  "actor": "AVG_Hawkeye",
+  "display_name": "Hawkeye",
+  "sku": "1000110",
+  "icon": "HUD_PlayerIcons_Hawkeye",
+  "progression_tree": "IN2_AVG_Hawkeye",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_Hawkeye.dnax"
+ },
+ {
+  "actor": "AVG_Loki",
+  "display_name": "Loki",
+  "sku": "1000124",
+  "icon": "HUD_PlayerIcons_Loki",
+  "progression_tree": "IN2_AVG_Loki",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_Loki.dnax"
+ },
+ {
+  "actor": "AVG_Falcon",
+  "display_name": "Falcon",
+  "sku": "1000127",
+  "icon": "HUD_PlayerIcons_Falcon",
+  "progression_tree": "IN2_AVG_Falcon",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_Falcon.dnax"
+ },
+ {
+  "actor": "GOG_Groot",
+  "display_name": "Groot",
+  "sku": "1000104",
+  "icon": "HUD_PlayerIcons_Groot",
+  "progression_tree": "IN2_GOG_Groot",
+  "franchise": "Guardians of the Galaxy",
+  "dnax": "characters/GOG_Groot.dnax"
+ },
+ {
+  "actor": "GOG_RocketRaccoon",
+  "display_name": "Rocket Raccoon",
+  "sku": "1000105",
+  "icon": "HUD_PlayerIcons_RocketRacoon",
+  "progression_tree": "IN2_GOG_RocketRaccoon",
+  "franchise": "Guardians of the Galaxy",
+  "dnax": "characters/GOG_RocketRaccoon.dnax"
+ },
+ {
+  "actor": "GOG_StarLord",
+  "display_name": "Star-Lord",
+  "sku": "1000106",
+  "icon": "HUD_PlayerIcons_StarLord",
+  "progression_tree": "IN2_GOG_StarLord",
+  "franchise": "Guardians of the Galaxy",
+  "dnax": "characters/GOG_StarLord.dnax"
+ },
+ {
+  "actor": "GOG_Drax",
+  "display_name": "Drax",
+  "sku": "1000111",
+  "icon": "HUD_PlayerIcons_Drax",
+  "progression_tree": "IN2_GOG_Drax",
+  "franchise": "Guardians of the Galaxy",
+  "dnax": "characters/GOG_Drax.dnax"
+ },
+ {
+  "actor": "GOG_Gamora",
+  "display_name": "Gamora",
+  "sku": "1000112",
+  "icon": "HUD_PlayerIcons_Gamora",
+  "progression_tree": "IN2_GOG_Gamora",
+  "franchise": "Guardians of the Galaxy",
+  "dnax": "characters/GOG_Gamora.dnax"
+ },
+ {
+  "actor": "GOG_Yondu",
+  "display_name": "Yondu",
+  "sku": "1000128",
+  "icon": "HUD_PlayerIcons_Yondu",
+  "progression_tree": "IN2_GOG_Yondu",
+  "franchise": "Guardians of the Galaxy",
+  "dnax": "characters/GOG_Yondu.dnax"
+ },
+ {
+  "actor": "GOG_Ronan",
+  "display_name": "Ronan",
+  "sku": "1000125",
+  "icon": "HUD_PlayerIcons_Ronan",
+  "progression_tree": "IN2_GOG_Ronan",
+  "franchise": "Guardians of the Galaxy",
+  "dnax": "characters/GOG_Ronan.dnax"
+ },
+ {
+  "actor": "SPD_Spiderman",
+  "display_name": "Spider-Man",
+  "sku": "1000107",
+  "icon": "HUD_PlayerIcons_Spiderman",
+  "progression_tree": "IN2_SPD_Spiderman",
+  "franchise": "Spider-Man",
+  "dnax": "characters/spd_spiderman.dnax"
+ },
+ {
+  "actor": "SPD_Spiderman_Black",
+  "display_name": "Spider-Man (Black Suit)",
+  "sku": "1000134",
+  "icon": "HUD_PlayerIcons_Spiderman_Alt_Outfit",
+  "progression_tree": "IN2_SPD_Spiderman_Black",
+  "franchise": "Spider-Man",
+  "dnax": "characters/spd_spiderman_black.dnax"
+ },
+ {
+  "actor": "SPD_Venom",
+  "display_name": "Venom",
+  "sku": "1000115",
+  "icon": "HUD_PlayerIcons_Venom",
+  "progression_tree": "IN2_SPD_Venom",
+  "franchise": "Spider-Man",
+  "dnax": "characters/SPD_Venom.dnax"
+ },
+ {
+  "actor": "SPD_NickFury",
+  "display_name": "Nick Fury",
+  "sku": "1000108",
+  "icon": "HUD_PlayerIcons_NickFury",
+  "progression_tree": "IN2_SPD_NickFury",
+  "franchise": "Spider-Man",
+  "dnax": "characters/SPD_NickFury.dnax"
+ },
+ {
+  "actor": "SPD_IronFist",
+  "display_name": "Iron Fist",
+  "sku": "1000113",
+  "icon": "HUD_PlayerIcons_IronFist",
+  "progression_tree": "IN2_SPD_IronFist",
+  "franchise": "Spider-Man",
+  "dnax": "characters/spd_ironfist.dnax"
+ },
+ {
+  "actor": "SPD_Nova",
+  "display_name": "Nova",
+  "sku": "1000114",
+  "icon": "HUD_PlayerIcons_Nova",
+  "progression_tree": "IN2_SPD_Nova",
+  "franchise": "Spider-Man",
+  "dnax": "characters/SPD_Nova.dnax"
+ },
+ {
+  "actor": "SPD_GreenGoblin",
+  "display_name": "Green Goblin",
+  "sku": "1000126",
+  "icon": "HUD_PlayerIcons_GreenGoblin",
+  "progression_tree": "IN2_SPD_GreenGoblin",
+  "franchise": "Spider-Man",
+  "dnax": "characters/SPD_GreenGoblin.dnax"
+ },
+ {
+  "actor": "TB_DonaldDuck",
+  "display_name": "Donald Duck",
+  "sku": "1000116",
+  "icon": "HUD_PlayerIcons_DonaldDuck",
+  "progression_tree": "IN2_TB_DonaldDuck",
+  "franchise": "Disney",
+  "dnax": "characters/TB_DonaldDuck.dnax"
+ },
+ {
+  "actor": "AL_Aladdin",
+  "display_name": "Aladdin",
+  "sku": "1000117",
+  "icon": "HUD_PlayerIcons_Aladdin",
+  "progression_tree": "IN2_AL_Aladdin",
+  "franchise": "Aladdin",
+  "dnax": "characters/AL_Aladdin.dnax"
+ },
+ {
+  "actor": "LAS_Stitch",
+  "display_name": "Stitch",
+  "sku": "1000118",
+  "icon": "HUD_PlayerIcons_Stitch",
+  "progression_tree": "IN2_LAS_Stitch",
+  "franchise": "Lilo & Stitch",
+  "dnax": "characters/LAS_Stitch.dnax"
+ },
+ {
+  "actor": "BRV_Merida",
+  "display_name": "Merida",
+  "sku": "1000119",
+  "icon": "HUD_PlayerIcons_Merida",
+  "progression_tree": "IN2_BRV_Merida",
+  "franchise": "Brave",
+  "dnax": "characters/BRV_Merida.dnax"
+ },
+ {
+  "actor": "TB_Tinkerbell",
+  "display_name": "Tinker Bell",
+  "sku": "1000120",
+  "icon": "HUD_PlayerIcons_Tinkerbell",
+  "progression_tree": "IN2_TB_Tinkerbell",
+  "franchise": "Disney",
+  "dnax": "characters/TB_Tinkerbell.dnax"
+ },
+ {
+  "actor": "MAL_Maleficent",
+  "display_name": "Maleficent",
+  "sku": "1000121",
+  "icon": "HUD_PlayerIcons_Maleficent",
+  "progression_tree": "IN2_MAL_Maleficent",
+  "franchise": "Maleficent",
+  "dnax": "characters/MAL_Maleficent.dnax"
+ },
+ {
+  "actor": "BHS_Hiro",
+  "display_name": "Hiro",
+  "sku": "1000122",
+  "icon": "HUD_PlayerIcons_Hiro",
+  "progression_tree": "IN2_BHS_Hiro",
+  "franchise": "Big Hero 6",
+  "dnax": "characters/BHS_Hiro.dnax"
+ },
+ {
+  "actor": "BHS_Baymax",
+  "display_name": "Baymax",
+  "sku": "1000123",
+  "icon": "HUD_PlayerIcons_Baymax",
+  "progression_tree": "IN2_BHS_Baymax",
+  "franchise": "Big Hero 6",
+  "dnax": "characters/bhs_baymax.dnax"
+ },
+ {
+  "actor": "AL_Jasmine",
+  "display_name": "Jasmine",
+  "sku": "1000129",
+  "icon": "HUD_PlayerIcons_Jasmine",
+  "progression_tree": "IN2_AL_Jasmine",
+  "franchise": "Aladdin",
+  "dnax": "characters/AL_Jasmine.dnax"
+ },
+ {
+  "actor": "TRN_Sam",
+  "display_name": "Sam",
+  "sku": "1000150",
+  "icon": "HUD_PlayerIcons_Sam",
+  "progression_tree": "IN2_TRN_Sam",
+  "franchise": "Tron",
+  "dnax": "characters/TRN_Sam.dnax"
+ },
+ {
+  "actor": "TRN_Quorra",
+  "display_name": "Quorra",
+  "sku": "1000151",
+  "icon": "HUD_PlayerIcons_Quorra",
+  "progression_tree": "IN2_TRN_Quorra",
+  "franchise": "Tron",
+  "dnax": "characters/TRN_Quorra.dnax"
+ },
+ {
+  "actor": "AV_MrIncredible",
+  "display_name": "Mr. Incredible",
+  "sku": "1000001",
+  "icon": "HUD_PlayerIcons_MrIncredible",
+  "progression_tree": "IN1_Inc_Bob",
+  "franchise": "The Incredibles",
+  "dnax": "characters/inc_bob.dnax"
+ },
+ {
+  "actor": "AV_ElastiGirl",
+  "display_name": "Elastigirl",
+  "sku": "1000011",
+  "icon": "HUD_PlayerIcons_Helen",
+  "progression_tree": "IN1_Inc_Helen",
+  "franchise": "The Incredibles",
+  "dnax": "characters/Inc_Helen.dnax"
+ },
+ {
+  "actor": "AV_Syndrome",
+  "display_name": "Syndrome",
+  "sku": "1000015",
+  "icon": "HUD_PlayerIcons_Syndrome",
+  "progression_tree": "IN1_Inc_Syndrome",
+  "franchise": "The Incredibles",
+  "dnax": "characters/Inc_Syndrome.dnax"
+ },
+ {
+  "actor": "AV_Violet",
+  "display_name": "Violet",
+  "sku": "1000019",
+  "icon": "HUD_PlayerIcons_Violet",
+  "progression_tree": "IN1_Inc_Violet",
+  "franchise": "The Incredibles",
+  "dnax": "characters/Inc_Violet.dnax"
+ },
+ {
+  "actor": "AV_Dash",
+  "display_name": "Dash",
+  "sku": "1000018",
+  "icon": "HUD_PlayerIcons_Dash",
+  "progression_tree": "IN1_Inc_Dash",
+  "franchise": "The Incredibles",
+  "dnax": "characters/Inc_Dash.dnax"
+ },
+ {
+  "actor": "MU_Sully",
+  "display_name": "Sulley",
+  "sku": "1000002",
+  "icon": "HUD_PlayerIcons_Sully",
+  "progression_tree": "IN1_MU_Sullivan",
+  "franchise": "Monsters University",
+  "dnax": "characters/mu_sullivan.dnax"
+ },
+ {
+  "actor": "MU_Mike",
+  "display_name": "Mike",
+  "sku": "1000010",
+  "icon": "HUD_PlayerIcons_Mike",
+  "progression_tree": "IN1_MU_Mike",
+  "franchise": "Monsters University",
+  "dnax": "characters/MU_Mike.dnax"
+ },
+ {
+  "actor": "MU_Randall",
+  "display_name": "Randall",
+  "sku": "1000014",
+  "icon": "HUD_PlayerIcons_Randall",
+  "progression_tree": "IN1_MU_Randall",
+  "franchise": "Monsters University",
+  "dnax": "characters/MU_Randall.dnax"
+ },
+ {
+  "actor": "PIR_JackSparrow",
+  "display_name": "Jack Sparrow",
+  "sku": "1000003",
+  "icon": "HUD_PlayerIcons_JackSparrow",
+  "progression_tree": "IN1_PIR_JackSparrow",
+  "franchise": "Pirates of the Caribbean",
+  "dnax": "characters/pir_jacksparrow.dnax"
+ },
+ {
+  "actor": "PIR_Barbossa",
+  "display_name": "Barbossa",
+  "sku": "1000012",
+  "icon": "HUD_PlayerIcons_Barbossa",
+  "progression_tree": "IN1_PIR_Barbossa",
+  "franchise": "Pirates of the Caribbean",
+  "dnax": "characters/PIR_Barbossa.dnax"
+ },
+ {
+  "actor": "PIR_DavyJones",
+  "display_name": "Davy Jones",
+  "sku": "1000013",
+  "icon": "HUD_PlayerIcons_DavyJones",
+  "progression_tree": "IN1_PIR_DavyJones",
+  "franchise": "Pirates of the Caribbean",
+  "dnax": "characters/PIR_DavyJones.dnax"
+ },
+ {
+  "actor": "AV_Woody",
+  "display_name": "Woody",
+  "sku": "1000016",
+  "icon": "HUD_PlayerIcons_Woody",
+  "progression_tree": "IN1_TS_Woody",
+  "franchise": "Toy Story",
+  "dnax": "characters/TS_Woody.dnax"
+ },
+ {
+  "actor": "AV_Jessie",
+  "display_name": "Jessie",
+  "sku": "1000009",
+  "icon": "HUD_PlayerIcons_Jessie",
+  "progression_tree": "IN1_TS_Jessie",
+  "franchise": "Toy Story",
+  "dnax": "characters/TS_Jessie.dnax"
+ },
+ {
+  "actor": "AV_Buzz",
+  "display_name": "Buzz Lightyear",
+  "sku": "1000008",
+  "icon": "HUD_PlayerIcons_Buzz",
+  "progression_tree": "IN1_TS_Buzz",
+  "franchise": "Toy Story",
+  "dnax": "characters/ts_buzz.dnax"
+ },
+ {
+  "actor": "WR_Ralph",
+  "display_name": "Wreck-It Ralph",
+  "sku": "1000028",
+  "icon": "HUD_PlayerIcons_Ralph",
+  "progression_tree": "IN1_WR_Ralph",
+  "franchise": "Wreck-It Ralph",
+  "dnax": "characters/WR_Ralph.dnax"
+ },
+ {
+  "actor": "WR_Vanellope",
+  "display_name": "Vanellope",
+  "sku": "1000029",
+  "icon": "HUD_PlayerIcons_Vanellope",
+  "progression_tree": "IN1_WR_Vanellope",
+  "franchise": "Wreck-It Ralph",
+  "dnax": "characters/WR_Vanellope.dnax"
+ },
+ {
+  "actor": "PNF_Phineas",
+  "display_name": "Phineas",
+  "sku": "1000026",
+  "icon": "HUD_PlayerIcons_Phineas",
+  "progression_tree": "IN1_PNF_Phineas",
+  "franchise": "Phineas and Ferb",
+  "dnax": "characters/PNF_Phineas.dnax"
+ },
+ {
+  "actor": "PNF_Perry",
+  "display_name": "Perry",
+  "sku": "1000027",
+  "icon": "HUD_PlayerIcons_AgentP",
+  "progression_tree": "IN1_PNF_Perry",
+  "franchise": "Phineas and Ferb",
+  "dnax": "characters/pnf_perry.dnax"
+ },
+ {
+  "actor": "LR_LoneRanger",
+  "display_name": "Lone Ranger",
+  "sku": "1000004",
+  "icon": "HUD_PlayerIcons_LoneRanger",
+  "progression_tree": "IN1_LR_LoneRanger",
+  "franchise": "The Lone Ranger",
+  "dnax": "characters/lr_loneranger.dnax"
+ },
+ {
+  "actor": "LR_Tonto",
+  "display_name": "Tonto",
+  "sku": "1000005",
+  "icon": "HUD_PlayerIcons_Tonto",
+  "progression_tree": "IN1_LR_Tonto",
+  "franchise": "The Lone Ranger",
+  "dnax": "characters/LR_Tonto.dnax"
+ },
+ {
+  "actor": "FRO_Anna",
+  "display_name": "Anna",
+  "sku": "1000024",
+  "icon": "HUD_PlayerIcons_Anna",
+  "progression_tree": "IN1_FRO_Anna",
+  "franchise": "Frozen",
+  "dnax": "characters/FRO_Anna.dnax"
+ },
+ {
+  "actor": "FRO_Elsa",
+  "display_name": "Elsa",
+  "sku": "1000025",
+  "icon": "HUD_PlayerIcons_Elsa",
+  "progression_tree": "IN1_FRO_Elsa",
+  "franchise": "Frozen",
+  "dnax": "characters/FRO_Elsa.dnax"
+ },
+ {
+  "actor": "TAN_Rapunzel",
+  "display_name": "Rapunzel",
+  "sku": "1000023",
+  "icon": "HUD_PlayerIcons_Rapunzel",
+  "progression_tree": "IN1_TAN_Rapunzel",
+  "franchise": "Tangled",
+  "dnax": "characters/TAN_Rapunzel.dnax"
+ },
+ {
+  "actor": "TB_MickeyMouse",
+  "display_name": "Mickey Mouse",
+  "sku": "1000021",
+  "icon": "HUD_PlayerIcons_SorcererMickey",
+  "progression_tree": "IN1_TB_MickeyMouse",
+  "franchise": "Disney",
+  "dnax": "characters/tb_mickeymouse.dnax"
+ },
+ {
+  "actor": "NBC_JackSkellington",
+  "display_name": "Jack Skellington",
+  "sku": "1000022",
+  "icon": "HUD_PlayerIcons_Jack",
+  "progression_tree": "IN1_NBC_JackSkellington",
+  "franchise": "The Nightmare Before Christmas",
+  "dnax": "characters/NBC_JackSkellington.dnax"
+ },
+ {
+  "actor": "AV_MrIncredibleInfinite",
+  "display_name": "Mr. Incredible (Crystal)",
+  "sku": "1000030",
+  "icon": "HUD_PlayerIcons_Infinite_MrIncredible",
+  "progression_tree": "IN1_Inc_Bob",
+  "franchise": "The Incredibles",
+  "dnax": "characters/inc_bob_infinite.dnax"
+ },
+ {
+  "actor": "MU_SullyInfinite",
+  "display_name": "Sulley (Crystal)",
+  "sku": "1000032",
+  "icon": "HUD_PlayerIcons_Infinite_Sully",
+  "progression_tree": "IN1_MU_Sullivan",
+  "franchise": "Monsters University",
+  "dnax": "characters/mu_sullivan_infinite.dnax"
+ },
+ {
+  "actor": "PIR_JackSparrowInfinite",
+  "display_name": "Jack Sparrow (Crystal)",
+  "sku": "1000031",
+  "icon": "HUD_PlayerIcons_Infinite_JackSparrow",
+  "progression_tree": "IN1_PIR_JackSparrow",
+  "franchise": "Pirates of the Caribbean",
+  "dnax": "characters/pir_jacksparrow_infinite.dnax"
+ },
+ {
+  "actor": "AV_BuzzInfinite",
+  "display_name": "Buzz Lightyear (Crystal)",
+  "sku": "1000035",
+  "icon": "HUD_PlayerIcons_Infinite_Buzz",
+  "progression_tree": "IN1_TS_Buzz",
+  "franchise": "Toy Story",
+  "dnax": "characters/ts_buzz_infinite.dnax"
+ },
+ {
+  "actor": "PNF_PerryInfinite",
+  "display_name": "Perry (Crystal)",
+  "sku": "1000036",
+  "icon": "HUD_PlayerIcons_Infinite_AgentP",
+  "progression_tree": "IN1_PNF_Perry",
+  "franchise": "Phineas and Ferb",
+  "dnax": "characters/pnf_perry_infinite.dnax"
+ },
+ {
+  "actor": "LR_LoneRangerInfinite",
+  "display_name": "Lone Ranger (Crystal)",
+  "sku": "1000034",
+  "icon": "HUD_PlayerIcons_Infinite_LoneRanger",
+  "progression_tree": "IN1_LR_LoneRanger",
+  "franchise": "The Lone Ranger",
+  "dnax": "characters/lr_loneranger_infinite.dnax"
+ },
+ {
+  "actor": "TB_MickeyMouseInfinite",
+  "display_name": "Mickey Mouse (Crystal)",
+  "sku": "1000037",
+  "icon": "HUD_PlayerIcons_Infinite_SorcererMickey",
+  "progression_tree": "IN1_TB_MickeyMouse",
+  "franchise": "Disney",
+  "dnax": "characters/tb_mickeymouse_infinite.dnax"
+ },
+ {
+  "actor": "AV_Buzz_Glow",
+  "display_name": "Buzz Lightyear (Glow)",
+  "sku": "1000038",
+  "icon": "HUD_PlayerIcons_Infinite_Buzz",
+  "progression_tree": "IN1_TS_Buzz",
+  "franchise": "Toy Story",
+  "dnax": "characters/ts_buzz_glow.dnax"
+ },
+ {
+  "actor": "TCW_Anakin",
+  "display_name": "Anakin",
+  "sku": "1000200",
+  "icon": "HUD_PlayerIcons_Anakin",
+  "progression_tree": "IN3_TCW_Anakin",
+  "franchise": "Star Wars: The Clone Wars",
+  "dnax": "characters/TCW_Anakin.dnax"
+ },
+ {
+  "actor": "TCW_ObiWan",
+  "display_name": "Obi-Wan Kenobi",
+  "sku": "1000201",
+  "icon": "HUD_PlayerIcons_ObiWan",
+  "progression_tree": "IN3_TCW_Obiwan",
+  "franchise": "Star Wars: The Clone Wars",
+  "dnax": "characters/TCW_ObiWan.dnax"
+ },
+ {
+  "actor": "TCW_Yoda",
+  "display_name": "Yoda",
+  "sku": "1000202",
+  "icon": "HUD_PlayerIcons_Yoda",
+  "progression_tree": "IN3_TCW_Yoda",
+  "franchise": "Star Wars: The Clone Wars",
+  "dnax": "characters/TCW_Yoda.dnax"
+ },
+ {
+  "actor": "TCW_Ahsoka",
+  "display_name": "Ahsoka",
+  "sku": "1000203",
+  "icon": "HUD_PlayerIcons_Ahsoka",
+  "progression_tree": "IN3_TCW_Ahsoka",
+  "franchise": "Star Wars: The Clone Wars",
+  "dnax": "characters/TCW_Ahsoka.dnax"
+ },
+ {
+  "actor": "TCW_DarthMaul",
+  "display_name": "Darth Maul",
+  "sku": "1000204",
+  "icon": "HUD_PlayerIcons_DarthMaul",
+  "progression_tree": "IN3_TCW_DarthMaul",
+  "franchise": "Star Wars: The Clone Wars",
+  "dnax": "characters/TCW_DarthMaul.dnax"
+ },
+ {
+  "actor": "EMP_Luke",
+  "display_name": "Luke Skywalker",
+  "sku": "1000206",
+  "icon": "HUD_PlayerIcons_Luke",
+  "progression_tree": "IN3_EMP_Luke",
+  "franchise": "Star Wars",
+  "dnax": "characters/EMP_Luke.dnax"
+ },
+ {
+  "actor": "EMP_HanSolo",
+  "display_name": "Han Solo",
+  "sku": "1000207",
+  "icon": "HUD_PlayerIcons_HanSolo",
+  "progression_tree": "IN3_EMP_HanSolo",
+  "franchise": "Star Wars",
+  "dnax": "characters/EMP_HanSolo.dnax"
+ },
+ {
+  "actor": "EMP_Leia",
+  "display_name": "Princess Leia",
+  "sku": "1000208",
+  "icon": "HUD_PlayerIcons_Leia",
+  "progression_tree": "IN3_EMP_Leia",
+  "franchise": "Star Wars",
+  "dnax": "characters/EMP_Leia.dnax"
+ },
+ {
+  "actor": "EMP_Chewbacca",
+  "display_name": "Chewbacca",
+  "sku": "1000209",
+  "icon": "HUD_PlayerIcons_Chewbacca",
+  "progression_tree": "IN3_EMP_Chewbacca",
+  "franchise": "Star Wars",
+  "dnax": "characters/EMP_Chewbacca.dnax"
+ },
+ {
+  "actor": "EMP_DarthVader",
+  "display_name": "Darth Vader",
+  "sku": "1000210",
+  "icon": "HUD_PlayerIcons_DarthVader",
+  "progression_tree": "IN3_EMP_DarthVader",
+  "franchise": "Star Wars",
+  "dnax": "characters/EMP_DarthVader.dnax"
+ },
+ {
+  "actor": "EMP_BobaFett",
+  "display_name": "Boba Fett",
+  "sku": "1000211",
+  "icon": "HUD_PlayerIcons_BobaFett",
+  "progression_tree": "IN3_EMP_BobaFett",
+  "franchise": "Star Wars",
+  "dnax": "characters/EMP_BobaFett.dnax"
+ },
+ {
+  "actor": "REB_Ezra",
+  "display_name": "Ezra",
+  "sku": "1000212",
+  "icon": "HUD_PlayerIcons_Ezra",
+  "progression_tree": "IN3_REB_Ezra",
+  "franchise": "Star Wars Rebels",
+  "dnax": "characters/REB_Ezra.dnax"
+ },
+ {
+  "actor": "REB_Kanan",
+  "display_name": "Kanan",
+  "sku": "1000213",
+  "icon": "HUD_PlayerIcons_Kanan",
+  "progression_tree": "IN3_REB_Kanan",
+  "franchise": "Star Wars Rebels",
+  "dnax": "characters/REB_Kanan.dnax"
+ },
+ {
+  "actor": "REB_Sabine",
+  "display_name": "Sabine",
+  "sku": "1000214",
+  "icon": "HUD_PlayerIcons_Sabine",
+  "progression_tree": "IN3_REB_Sabine",
+  "franchise": "Star Wars Rebels",
+  "dnax": "characters/REB_Sabine.dnax"
+ },
+ {
+  "actor": "REB_Zeb",
+  "display_name": "Zeb",
+  "sku": "1000215",
+  "icon": "HUD_PlayerIcons_Zeb",
+  "progression_tree": "IN3_REB_Zeb",
+  "franchise": "Star Wars Rebels",
+  "dnax": "characters/REB_Zeb.dnax"
+ },
+ {
+  "actor": "OUT_Joy",
+  "display_name": "Joy",
+  "sku": "1000216",
+  "icon": "HUD_PlayerIcons_Joy",
+  "progression_tree": "IN3_OUT_Joy",
+  "franchise": "Inside Out",
+  "dnax": "characters/OUT_Joy.dnax"
+ },
+ {
+  "actor": "OUT_Anger",
+  "display_name": "Anger",
+  "sku": "1000217",
+  "icon": "HUD_PlayerIcons_Anger",
+  "progression_tree": "IN3_OUT_Anger",
+  "franchise": "Inside Out",
+  "dnax": "characters/OUT_Anger.dnax"
+ },
+ {
+  "actor": "OUT_Fear",
+  "display_name": "Fear",
+  "sku": "1000218",
+  "icon": "HUD_PlayerIcons_Fear",
+  "progression_tree": "IN3_OUT_Fear",
+  "franchise": "Inside Out",
+  "dnax": "characters/OUT_Fear.dnax"
+ },
+ {
+  "actor": "OUT_Sadness",
+  "display_name": "Sadness",
+  "sku": "1000219",
+  "icon": "HUD_PlayerIcons_Sadness",
+  "progression_tree": "IN3_OUT_Sadness",
+  "franchise": "Inside Out",
+  "dnax": "characters/OUT_Sadness.dnax"
+ },
+ {
+  "actor": "OUT_Disgust",
+  "display_name": "Disgust",
+  "sku": "1000220",
+  "icon": "HUD_PlayerIcons_Disgust",
+  "progression_tree": "IN3_OUT_Disgust",
+  "franchise": "Inside Out",
+  "dnax": "characters/OUT_Disgust.dnax"
+ },
+ {
+  "actor": "TBX_ClassicMickey",
+  "display_name": "Mickey Mouse (Classic)",
+  "sku": "1000221",
+  "icon": "HUD_PlayerIcons_ClassicMickey",
+  "progression_tree": "IN3_TBX_ClassicMickey",
+  "franchise": "Disney",
+  "dnax": "characters/TBX_ClassicMickey.dnax"
+ },
+ {
+  "actor": "TBX_Minnie",
+  "display_name": "Minnie Mouse",
+  "sku": "1000222",
+  "icon": "HUD_PlayerIcons_Minnie",
+  "progression_tree": "IN3_TBX_Minnie",
+  "franchise": "Disney",
+  "dnax": "characters/TBX_Minnie.dnax"
+ },
+ {
+  "actor": "TBX_Mulan",
+  "display_name": "Mulan",
+  "sku": "1000223",
+  "icon": "HUD_PlayerIcons_Mulan",
+  "progression_tree": "IN3_TBX_Mulan",
+  "franchise": "Mulan",
+  "dnax": "characters/TBX_Mulan.dnax"
+ },
+ {
+  "actor": "FRO_Olaf",
+  "display_name": "Olaf",
+  "sku": "1000224",
+  "icon": "HUD_PlayerIcons_Olaf",
+  "progression_tree": "IN3_FRO_Olaf",
+  "franchise": "Frozen",
+  "dnax": "characters/FRO_Olaf.dnax"
+ },
+ {
+  "actor": "AVG_Ultron",
+  "display_name": "Ultron",
+  "sku": "1000226",
+  "icon": "HUD_PlayerIcons_Ultron",
+  "progression_tree": "IN3_AVG_Ultron",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_Ultron.dnax"
+ },
+ {
+  "actor": "DNO_Spot",
+  "display_name": "Spot",
+  "sku": "1000235",
+  "icon": "HUD_PlayerIcons_Spot",
+  "progression_tree": "IN3_DNO_Spot",
+  "franchise": "The Good Dinosaur",
+  "dnax": "characters/DNO_Spot.dnax"
+ },
+ {
+  "actor": "AVG_HulkBuster",
+  "display_name": "Hulkbuster",
+  "sku": "1000238",
+  "icon": "HUD_PlayerIcons_HulkBuster",
+  "progression_tree": "IN3_AVG_HulkBuster",
+  "franchise": "Avengers",
+  "dnax": "characters/AVG_HulkBuster.dnax"
+ },
+ {
+  "actor": "PSX_Emmitt",
+  "display_name": "Emmitt",
+  "sku": "1000230",
+  "icon": "psx_HUD_PlayerIcons_Emmitt",
+  "progression_tree": "IN3_PSX_Emmitt",
+  "franchise": "Star Wars",
+  "dnax": "characters/PSX_Emmitt.dnax"
+ },
+ {
+  "actor": "PSX_Grimm",
+  "display_name": "Grimm",
+  "sku": "1000231",
+  "icon": "psx_HUD_PlayerIcons_Grimm",
+  "progression_tree": "IN3_PSX_Grimm",
+  "franchise": "Star Wars",
+  "dnax": "characters/PSX_Grimm.dnax"
+ },
+ {
+  "actor": "PSX_James",
+  "display_name": "James",
+  "sku": "1000232",
+  "icon": "psx_HUD_PlayerIcons_James",
+  "progression_tree": "IN3_PSX_James",
+  "franchise": "Star Wars",
+  "dnax": "characters/PSX_James.dnax"
+ },
+ {
+  "actor": "PSX_Lola",
+  "display_name": "Lola",
+  "sku": "1000233",
+  "icon": "psx_HUD_PlayerIcons_Lola",
+  "progression_tree": "IN3_PSX_Lola",
+  "franchise": "Star Wars",
+  "dnax": "characters/PSX_Lola.dnax"
+ },
+ {
+  "actor": "TBX_NickWilde",
+  "display_name": "Nick Wilde",
+  "sku": "1000236",
+  "icon": "HUD_PlayerIcons_NickWilde",
+  "progression_tree": "IN3_TBX_NickWilde",
+  "franchise": "Zootopia",
+  "dnax": "characters/TBX_NickWilde.dnax"
+ },
+ {
+  "actor": "TBX_JudyHopps",
+  "display_name": "Judy Hopps",
+  "sku": "1000237",
+  "icon": "HUD_PlayerIcons_JudyHopps",
+  "progression_tree": "IN3_TBX_JudyHopps",
+  "franchise": "Zootopia",
+  "dnax": "characters/TBX_JudyHopps.dnax"
+ }
+]

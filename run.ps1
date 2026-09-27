@@ -1,16 +1,15 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
 
 if (-not (Test-Path ".venv")) {
-    Write-Host "Création de l'environnement virtuel..." -ForegroundColor Cyan
+    Write-Host "Creating the virtual environment..." -ForegroundColor Cyan
     python -m venv .venv
 }
 
-# Activer l'environnement
 . .venv\Scripts\Activate.ps1
 
-Write-Host "Vérification des dépendances..." -ForegroundColor Cyan
-pip install -r requirements.txt | Out-Null
+Write-Host "Checking dependencies..." -ForegroundColor Cyan
+pip install -q -r requirements.txt
 
-Write-Host "Lancement de Disney Infinity Creator (PySide6)..." -ForegroundColor Cyan
+Write-Host "Starting Disney Infinity Creator..." -ForegroundColor Cyan
 python src/main.py
-exit 
