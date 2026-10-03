@@ -47,13 +47,13 @@ abilities of the figure you picked, and no original character is replaced.
 
 ## Requirements
 
-| What | Notes |
-| :--- | :--- |
-| Windows 10 or 11 | |
-| Disney Infinity 3.0 Gold Edition (PC) | Your own installed copy |
-| CrabeLoader | The mod loader that loads your character into the game. **CrabeMenu** (in-game `F5` menu) is recommended to switch to your character |
-| Python 3.12 or newer | Tested with Python 3.14. Tick "Add python.exe to PATH" when installing |
-| Blender 4.x *(optional, recommended)* | Only for better skin weights: Creator runs it in the background, you never have to open it |
+| What                                  | Notes                                                                                                                                       |
+| :------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| Windows 10 or 11                      |                                                                                                                                             |
+| Disney Infinity 3.0 Gold Edition (PC) | Your own installed copy                                                                                                                     |
+| [CrabeLoader](https://github.com/LucasLhomme/CrabeLoader) & [CrabeMenu](https://github.com/LucasLhomme/CrabeMenu) | The mod loader that loads your character into the game. **CrabeMenu** (in-game `F5` menu) is recommended to switch to your character |
+| Python 3.12 or newer                  | Tested with Python 3.14. Tick "Add python.exe to PATH" when installing                                                                      |
+| Blender 4.x *(optional, recommended)*  | Only for better skin weights: Creator runs it in the background, you never have to open it                                                  |
 
 ## Installation
 
@@ -79,11 +79,11 @@ The left panel has four tabs; go through them in order.
 Pick the figure whose skeleton, animations and moveset your character will use. Search by name or franchise; the
 viewport shows the figure in 3D.
 
-| Mark | Meaning |
-| :---: | :--- |
-| ● | Standard skeleton: every joint Creator needs is there |
-| ◐ | Adapted skeleton: a few bones stand in for missing ones (for example the ball of the foot for an ankle, an overlay bone under a dress for a thigh). Works, with small approximations |
-| ✕ | Not humanoid (Olaf, Randall…): cannot take a humanoid mesh |
+| Mark | Meaning                                                                                                                                                                              |
+| :--: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|  ●  | Standard skeleton: every joint Creator needs is there                                                                                                                                |
+|  ◐  | Adapted skeleton: a few bones stand in for missing ones (for example the ball of the foot for an ankle, an overlay bone under a dress for a thigh). Works, with small approximations |
+|  ✕  | Not humanoid (Olaf, Randall…): cannot take a humanoid mesh                                                                                                                          |
 
 **Pick a figure with a similar build.** A slim hero fits Spider-Man better than Hulk, and a long dress fits Elsa
 better than Captain America. Your character moves like its base: Thor's hammer attacks, Elsa's ice powers,
@@ -166,15 +166,15 @@ replaced by yours, under a new name.
 
 ### What a character mod contains
 
-| File | Role |
-| :--- | :--- |
-| `characters/<actor>/<actor>.oct`, `_0.vbuf`, `_0.ibuf` | The mesh: vertices, skin weights, triangles, bounds |
-| `characters/<actor>/<actor>.mtb` | The materials, with textures and a cache id of their own |
-| `characters/<actor>/<actor>.dnax`, `.bent`, `.animtreeoverrides` | The actor definition, pointing at the new mesh |
-| `textures/<xx>.zip` | The texture archive, carrying your character's textures |
-| `skilltrees/ActorList.patch`, `skilltrees/DataMap.patch` | Register the new actor in the game's databases |
-| `characters/<Actor>.lua` | Adds the figure to the character grid |
-| `<name>.lua`, `mod.json` | CrabeLoader entry point and CrabeMenu entry |
+| File                                                                   | Role                                                     |
+| :--------------------------------------------------------------------- | :------------------------------------------------------- |
+| `characters/<actor>/<actor>.oct`, `_0.vbuf`, `_0.ibuf`           | The mesh: vertices, skin weights, triangles, bounds      |
+| `characters/<actor>/<actor>.mtb`                                     | The materials, with textures and a cache id of their own |
+| `characters/<actor>/<actor>.dnax`, `.bent`, `.animtreeoverrides` | The actor definition, pointing at the new mesh           |
+| `textures/<xx>.zip`                                                  | The texture archive, carrying your character's textures  |
+| `skilltrees/ActorList.patch`, `skilltrees/DataMap.patch`           | Register the new actor in the game's databases           |
+| `characters/<Actor>.lua`                                             | Adds the figure to the character grid                    |
+| `<name>.lua`, `mod.json`                                           | CrabeLoader entry point and CrabeMenu entry              |
 
 ## Limitations
 
@@ -190,16 +190,16 @@ replaced by yours, under a new name.
 
 ## Troubleshooting
 
-| Problem | What to try |
-| :--- | :--- |
-| The character does not appear in the game | Restart the game. Check that CrabeLoader is installed, and look for errors in `loader.log` in the game folder |
-| "model too detailed" | Decimate the model under ~65,000 vertices |
-| The model is lying down or facing away | Tab 1: **Stand up**, **↻ 90°** / **↻ 180°** |
-| Elbows or knees bend in the wrong place | Tab 2: move the matching slider, then build the rig again |
-| Stiff or blocky bends | Set the Blender path in tab 3, then build the rig again |
+| Problem                                      | What to try                                                                                                       |
+| :------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
+| The character does not appear in the game    | Restart the game. Check that CrabeLoader is installed, and look for errors in `loader.log` in the game folder    |
+| "model too detailed"                         | Decimate the model under ~65,000 vertices                                                                         |
+| The model is lying down or facing away       | Tab 1:**Stand up**, **↻ 90°** / **↻ 180°**                                                  |
+| Elbows or knees bend in the wrong place      | Tab 2: move the matching slider, then build the rig again                                                         |
+| Stiff or blocky bends                        | Set the Blender path in tab 3, then build the rig again                                                           |
 | The character slides without moving its legs | The base figure's animations are missing from the game install. Reinstall, or verify the game files through Steam |
-| "already a figure of the game" | Pick another internal actor name |
-| The textures look wrong | Import the model as a `.zip` with its texture files next to it, or as a `.glb` with embedded textures |
+| "already a figure of the game"               | Pick another internal actor name                                                                                  |
+| The textures look wrong                      | Import the model as a`.zip` with its texture files next to it, or as a `.glb` with embedded textures          |
 
 ## For developers
 
@@ -222,11 +222,11 @@ tools/        scripts that regenerate src/assets from a game install
 The assets under `src/assets/` are generated once from a game install; the app itself never reads the game to
 browse or rig:
 
-| Script | Produces |
-| :--- | :--- |
-| `tools/build_roster.py <virtualreaderpc_data.lua> <toybox_actors.lua>` | `roster.json`: every playable figure, from the decompiled character grid and Toy Box actor list |
-| `tools/build_shader_table.py <decrypted game root>` | `shader_layouts.json`: where each shader keeps its texture slots, learnt from the game's own material bundles |
-| `tools/build_base_pack.py <game folder>` | `bases/`: every figure's model, `.dnax`, animation overrides and preview textures |
+| Script                                                                   | Produces                                                                                                        |
+| :----------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| `tools/build_roster.py <virtualreaderpc_data.lua> <toybox_actors.lua>` | `roster.json`: every playable figure, from the decompiled character grid and Toy Box actor list               |
+| `tools/build_shader_table.py <decrypted game root>`                    | `shader_layouts.json`: where each shader keeps its texture slots, learnt from the game's own material bundles |
+| `tools/build_base_pack.py <game folder>`                               | `bases/`: every figure's model, `.dnax`, animation overrides and preview textures                           |
 
 ## Credits
 
