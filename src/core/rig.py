@@ -60,32 +60,33 @@ def rotation_between(a, b):
     return np.eye(3) + vx + vx @ vx / (1.0 + c)
 
 
-def segment_transform(js, cs, jl, cl, axial=True, thicken=False):
-    """Row-vector affine map taking segment js->cs onto jl->cl (stretched along it, limbs thickened by sqrt(k))."""
+def segment_transform(js, cs, jl, cl, axial=False, thicken=False):
+    """Row-vector affine map taking segment js->cs onto jl->cl (stretches along it if axial, limbs thickened by sqrt(k))."""
     ds, dl = cs - js, cl - jl
     rot_row = rotation_between(ds, dl).T
-    k = float(np.clip(np.linalg.norm(dl) / np.linalg.norm(ds), 0.6, 1.7)) if axial else 1.0
+    k = float(np.clip(np.linalg.norm(dl) / np.linalg.norm(ds), 0.85, 1.15)) if axial else 1.0
     r = float(np.sqrt(k)) if thicken and k > 1.0 else 1.0
     u = ds / np.linalg.norm(ds)
     m = (r * np.eye(3) + (k - r) * np.outer(u, u)) @ rot_row
     return m, jl - js @ m
 
 
-def bake_transforms(anchors, base_pos) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+def bake_transforms(anchors, base_pos, preserve_proportions=True) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    stretch = not preserve_proportions
     specs = {"Hips": ("Hips", "Spine2", "Hips", "Spine2", False),
-             "Spine2": ("Spine2", "Spine3", "Spine2", "Spine3", True),
-             "Spine3": ("Spine3", "Neck", "Spine3", "Neck", True),
-             "Neck": ("Neck", "Head", "Neck", "Head", True)}
+             "Spine2": ("Spine2", "Spine3", "Spine2", "Spine3", stretch),
+             "Spine3": ("Spine3", "Neck", "Spine3", "Neck", stretch),
+             "Neck": ("Neck", "Head", "Neck", "Head", stretch)}
     for side, _ in SIDES:
-        specs[f"Clavicle_{side}"] = (f"Clavicle_{side}", f"Shoulder_{side}", f"Clavicle_{side}", f"Shoulder_{side}", True)
-        specs[f"Shoulder_{side}"] = (f"Shoulder_{side}", f"Elbow_{side}", f"Shoulder_{side}", f"Elbow_{side}", True)
-        specs[f"Elbow_{side}"] = (f"Elbow_{side}", f"Hand_{side}", f"Elbow_{side}", f"Hand_{side}", True)
+        specs[f"Clavicle_{side}"] = (f"Clavicle_{side}", f"Shoulder_{side}", f"Clavicle_{side}", f"Shoulder_{side}", stretch)
+        specs[f"Shoulder_{side}"] = (f"Shoulder_{side}", f"Elbow_{side}", f"Shoulder_{side}", f"Elbow_{side}", stretch)
+        specs[f"Elbow_{side}"] = (f"Elbow_{side}", f"Hand_{side}", f"Elbow_{side}", f"Hand_{side}", stretch)
         specs[f"Hand_{side}"] = (f"Hand_{side}", f"HandTip_{side}", f"Hand_{side}", f"Middle1_{side}", False)
-        specs[f"Thigh_{side}"] = (f"Thigh_{side}", f"Knee_{side}", f"Thigh_{side}", f"Knee_{side}", True)
-        specs[f"Knee_{side}"] = (f"Knee_{side}", f"Ankle_{side}", f"Knee_{side}", f"Ankle_{side}", True)
+        specs[f"Thigh_{side}"] = (f"Thigh_{side}", f"Knee_{side}", f"Thigh_{side}", f"Knee_{side}", stretch)
+        specs[f"Knee_{side}"] = (f"Knee_{side}", f"Ankle_{side}", f"Knee_{side}", f"Ankle_{side}", stretch)
     out = {}
     for bone, (sj, sc, lj, lc, axial) in specs.items():
-        limb = bone.startswith(("Shoulder_", "Elbow_", "Thigh_", "Knee_"))
+        limb = bone.startswith(("Shoulder_", "Elbow_", "Thigh_", "Knee_")) and stretch
         out[bone] = segment_transform(anchors[sj], anchors[sc], base_pos[lj], base_pos[lc], axial, thicken=limb)
     out["Head"] = (np.eye(3), base_pos["Head"] - anchors["Head"])
     for side, _ in SIDES:

@@ -108,3 +108,20 @@ def build_texture_archive(ids: TextureIds, diffuse: Image.Image, game_dir: Path,
     shutil.copy2(archive, out_zip)
     shutil.rmtree(work, ignore_errors=True)
     return len(got)
+
+
+def export_loose_textures(ids: TextureIds, diffuse: Image.Image, mod_dir: Path) -> list[Path]:
+    """Export diffuse and normal maps as loose .tbody DDS containers for CrabeLoader V2 VFS.
+
+    CrabeLoader V2 hooks CreateFile via VfsOverrideManager and serves mods/<slug>/textures/<hash>.tbody
+    directly in memory without repacking 50MB vanilla archives with offsetting.exe.
+    """
+    tex_dir = mod_dir / "textures"
+    tex_dir.mkdir(parents=True, exist_ok=True)
+    diffuse_path = tex_dir / f"{ids.diffuse}.tbody"
+    normal_path = tex_dir / f"{ids.normal}.tbody"
+
+    diffuse_path.write_bytes(dds_bytes(diffuse.convert("RGB"), "DXT1"))
+    normal_path.write_bytes(dds_bytes(Image.new("RGBA", (256, 256), FLAT_NORMAL_RGBA), "DXT5"))
+    return [diffuse_path, normal_path]
+

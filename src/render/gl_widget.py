@@ -114,6 +114,10 @@ class GLRenderer:
         self.lines = np.zeros((0, 3), np.float32)
         self.points = np.zeros((0, 3), np.float32)
         self.show_skeleton = True
+        self.base_lines = np.zeros((0, 3), np.float32)
+        self.base_points = np.zeros((0, 3), np.float32)
+        self.show_base_skeleton = True
+        self.overlay_base_skeleton = False
         self.yaw, self.pitch, self.distance = 25.0, 10.0, 4.0
         self.target = np.array([0.0, 1.0, 0.0], np.float32)
         self._last = (0, 0)
@@ -142,12 +146,24 @@ class GLRenderer:
             mesh.release()
         self.ghost = [_Mesh(self.ctx, self.prog, v, f, uv, tex) for v, f, uv, tex in parts]
 
+    def update_ghost_vertices(self, list_of_verts):
+        for mesh, verts in zip(self.ghost, list_of_verts):
+            mesh.update(verts)
+
+    def reset_ghost_vertices(self, original_parts):
+        for mesh, part in zip(self.ghost, original_parts):
+            mesh.update(part[0])
+
     def _ghost_bounds(self):
         return (np.min([m.bounds[0] for m in self.ghost], axis=0), np.max([m.bounds[1] for m in self.ghost], axis=0))
 
     def set_skeleton(self, lines, points):
         self.lines = np.zeros((0, 3), np.float32) if lines is None else np.asarray(lines, np.float32)
         self.points = np.zeros((0, 3), np.float32) if points is None else np.asarray(points, np.float32)
+
+    def set_base_skeleton(self, lines, points):
+        self.base_lines = np.zeros((0, 3), np.float32) if lines is None else np.asarray(lines, np.float32)
+        self.base_points = np.zeros((0, 3), np.float32) if points is None else np.asarray(points, np.float32)
 
     def ghost_offset(self):
         if not (self.ghost and self.model):
@@ -219,13 +235,13 @@ class GLRenderer:
             self._pending = True
             self.label.after(15, self.render)
 
-    def _draw_lines(self, pts, color, mode=moderngl.LINES):
+    def _draw_lines(self, pts, color, mode=moderngl.LINES, offset=(0.0, 0.0, 0.0)):
         if len(pts) == 0:
             return
         data = np.hstack([pts, np.zeros_like(pts), np.zeros((len(pts), 2), np.float32)]).astype("f4")
         vbo = self.ctx.buffer(data.tobytes())
         vao = self.ctx.vertex_array(self.prog, [(vbo, "3f 3f 2f", "in_position", "in_normal", "in_texcoord")])
-        self.prog["offset"].value = (0.0, 0.0, 0.0)
+        self.prog["offset"].value = tuple(float(v) for v in offset)
         self.prog["flat_color"].value = True
         self.prog["color"].value = color
         vao.render(mode)
@@ -262,11 +278,22 @@ class GLRenderer:
             for mesh in self.ghost:
                 mesh.draw()
 
-        if self.show_skeleton and self.model:
+        # Draw base character reference skeleton (cyan lines & points) on the ghost base character
+        if self.show_base_skeleton and len(self.base_lines) > 0:
+            base_off = self.ghost_offset() if (self.model and self.show_ghost and self.ghost and not self.overlay_base_skeleton) else (0.0, 0.0, 0.0)
             self.ctx.disable(moderngl.DEPTH_TEST)
-            self._draw_lines(self.lines, (0.2, 1.0, 0.35, 1.0))
+            self._draw_lines(self.base_lines, (0.05, 0.75, 1.0, 0.85), offset=base_off)
+            self.ctx.point_size = 8.0
+            self._draw_lines(self.base_points, (0.2, 0.9, 1.0, 1.0), moderngl.POINTS, offset=base_off)
+
+        # Draw custom model fitted skeleton (green lines, yellow points) on the custom model (at origin)
+        if self.show_skeleton and self.model and len(self.lines) > 0:
+            self.ctx.disable(moderngl.DEPTH_TEST)
+            self._draw_lines(self.lines, (0.2, 1.0, 0.35, 1.0), offset=(0.0, 0.0, 0.0))
             self.ctx.point_size = 7.0
-            self._draw_lines(self.points, (1.0, 0.85, 0.2, 1.0), moderngl.POINTS)
+            self._draw_lines(self.points, (1.0, 0.85, 0.2, 1.0), moderngl.POINTS, offset=(0.0, 0.0, 0.0))
+
+
 
         data = self.fbo.read(components=3, alignment=1)
         image = Image.frombytes("RGB", (self.width, self.height), data).transpose(Image.FLIP_TOP_BOTTOM)

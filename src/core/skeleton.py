@@ -102,41 +102,47 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tup
         xs = sx * x
         edge, profile = None, []
         b = tip_x
+        curr_arm_y = tip_y
         while b > step:
             sel = side & (xs <= b) & (xs > b - step)
             if sel.any():
                 lo, hi = y[sel].min(), y[sel].max()
-                if lo < tip_y - 0.2 * h:
+                yc = (hi + lo) / 2
+                if lo < curr_arm_y - 0.2 * h:
                     edge = b
                     break
-                profile.append((b - step / 2, hi - lo, z[sel].mean()))
+                curr_arm_y = yc
+                profile.append((b - step / 2, hi - lo, yc, z[sel].mean()))
             b -= step
         shoulder_edges.append(edge)
         thickness_by_side.append(profile)
     if all(e is not None for e in shoulder_edges) and all(len(p) >= 4 for p in thickness_by_side):
         edge = float(np.mean(shoulder_edges))
-        near = [t for prof in thickness_by_side for (bx, t, _) in prof if bx < edge + 0.35 * (tip_x - edge)]
+        near = [t for prof in thickness_by_side for (bx, t, _, _) in prof if bx < edge + 0.35 * (tip_x - edge)]
         arm_thick = float(np.median(near)) if near else 0.05 * h
-        shoulder_x = float(np.clip(edge - 0.3 * arm_thick, 0.05 * h, 0.8 * tip_x))
-        arm_z = float(np.mean([zz for prof in thickness_by_side for (_, _, zz) in prof]))
+        shoulder_inward = min(0.12 * arm_thick, 0.025 * h)
+        shoulder_x = float(np.clip(edge - shoulder_inward, 0.08 * h, 0.8 * tip_x))
+        near_y = [yc for prof in thickness_by_side for (bx, _, yc, _) in prof if bx < edge + 0.25 * (tip_x - edge)]
+        arm_y = float(np.mean(near_y)) if near_y else float(tip_y)
+        arm_z = float(np.mean([zz for prof in thickness_by_side for (_, _, _, zz) in prof]))
         detected.append("shoulders")
         # Wrist: the narrowest slab in the outer part of the arm.
         span = tip_x - shoulder_x
         best = None
         for prof in thickness_by_side:
-            for bx, t, _ in prof:
+            for bx, t, _, _ in prof:
                 f = (bx - shoulder_x) / span if span > 0 else 0
                 if 0.4 <= f <= 0.85 and (best is None or t < best[1]):
                     best = (f, t)
         wrist = float(best[0]) if best else 0.55
         (detected if best else estimated).append("wrists")
     else:
-        shoulder_x, arm_z, wrist = 0.12 * h, float(tip_z), 0.55
+        shoulder_x, arm_y, arm_z, wrist = 0.12 * h, float(tip_y), float(tip_z), 0.55
         estimated += ["shoulders", "wrists"]
 
     # Neck: narrowest central cross-section just above the arm line.
-    neck_y, best_w = tip_y + 0.01 * h, None
-    for yy in np.linspace(tip_y + 0.01 * h, min(tip_y + 0.18 * h, 0.95 * h), 25):
+    neck_y, best_w = arm_y + 0.01 * h, None
+    for yy in np.linspace(arm_y + 0.01 * h, min(arm_y + 0.18 * h, 0.95 * h), 25):
         pts = _sections(mesh, yy)
         pts = pts[np.abs(pts[:, 0]) < shoulder_x] if len(pts) else pts
         if len(pts) >= 3:
@@ -150,21 +156,21 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tup
     # midline (walking down rather than up ignores shoes or knees that touch lower down).
     crotch_y = None
     misses = 0
-    for yy in np.arange(tip_y - 0.1 * h, 0.08 * h, -h / 200):
+    for yy in np.arange(arm_y - 0.1 * h, 0.08 * h, -h / 200):
         if _crosses_midline(mesh, yy, shoulder_x):
             crotch_y, misses = float(yy), 0
         else:
             misses += 1
             if misses >= 3:
                 break
-    if crotch_y is None or crotch_y < 0.15 * h or crotch_y > tip_y - 0.12 * h:
+    if crotch_y is None or crotch_y < 0.15 * h or crotch_y > arm_y - 0.12 * h:
         crotch_y = 0.45 * h
         estimated.append("hips")
     else:
         detected.append("hips")
 
     # Torso depth centre, halfway between crotch and arm line.
-    pts = _sections(mesh, (crotch_y + tip_y) / 2)
+    pts = _sections(mesh, (crotch_y + arm_y) / 2)
     pts = pts[np.abs(pts[:, 0]) < shoulder_x] if len(pts) else pts
     torso_z = float((pts[:, 2].min() + pts[:, 2].max()) / 2) if len(pts) else 0.0
 
@@ -204,7 +210,7 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tup
     toe_z = float(z[feet].max()) if feet.any() else ankle_z + 0.1 * h
 
     props = Proportions(
-        height=h, arm_y=float(tip_y), arm_z=arm_z, shoulder_x=shoulder_x, tip_x=float(tip_x), tip_y=float(tip_y),
+        height=h, arm_y=float(arm_y), arm_z=arm_z, shoulder_x=shoulder_x, tip_x=float(tip_x), tip_y=float(tip_y),
         wrist=wrist, neck_y=neck_y, head_y=head_y, crotch_y=crotch_y, torso_z=torso_z,
         leg_x=leg_x, knee=0.48, knee_z=knee_z, ankle_y=ankle_y, ankle_z=ankle_z, toe_z=toe_z)
     return props, FitReport(detected, estimated)
@@ -286,4 +292,53 @@ def joint_points(anchors: dict[str, np.ndarray]) -> np.ndarray:
     return np.array([p for k, p in anchors.items() if not k.startswith(skip)], dtype=np.float32)
 
 
+def base_skeleton_segments(joints: dict[str, np.ndarray]) -> np.ndarray:
+    """Line list (2K, 3) representing the base figure's canonical reference skeleton in native bind pose."""
+    pairs = [
+        ("Hips", "Spine2"), ("Spine2", "Spine3"), ("Spine3", "Neck"), ("Neck", "Head")
+    ]
+    for s, _ in SIDES:
+        pairs += [
+            ("Spine3", f"Clavicle_{s}"),
+            (f"Clavicle_{s}", f"Shoulder_{s}"),
+            (f"Shoulder_{s}", f"Elbow_{s}"),
+            (f"Elbow_{s}", f"Hand_{s}"),
+            (f"Hand_{s}", f"Middle1_{s}"),
+            ("Hips", f"Thigh_{s}"),
+            (f"Thigh_{s}", f"Knee_{s}"),
+            (f"Knee_{s}", f"Ankle_{s}"),
+            (f"Ankle_{s}", f"Ball_{s}"),
+        ]
+    pts = [joints[k] for pair in pairs for k in pair if pair[0] in joints and pair[1] in joints]
+    return np.array(pts, dtype=np.float32).reshape(-1, 3)
+
+
+def base_joint_points(joints: dict[str, np.ndarray]) -> np.ndarray:
+    """All 3D joint points (K, 3) for the base figure."""
+    return np.array(list(joints.values()), dtype=np.float32)
+
+
+def apply_apose_to_proportions(p: Proportions, base: BaseCharacter) -> Proportions:
+    """Adjust proportions to match the base character's native A-pose arm drop angle."""
+    bj = base.joints
+    if "Shoulder_Left" in bj and "Hand_Left" in bj:
+        sh = bj["Shoulder_Left"]
+        hand = bj["Hand_Left"]
+        base_dx = max(abs(hand[0] - sh[0]), 0.05)
+        base_dy = hand[1] - sh[1]
+        slope = base_dy / base_dx  # negative for downward drop
+        arm_span = max(p.tip_x - p.shoulder_x, 0.1 * p.height)
+        target_tip_y = p.arm_y + slope * arm_span
+        target_tip_y = float(np.clip(target_tip_y, 0.25 * p.height, p.arm_y))
+        target_wrist = float(np.clip(np.linalg.norm(hand - sh) / max(np.linalg.norm(bj.get("Middle1_Left", hand) - sh), 1e-3), 0.4, 0.85)) if "Middle1_Left" in bj else p.wrist
+        return p.adjusted(tip_y=target_tip_y, wrist=target_wrist)
+    return p.adjusted(tip_y=p.arm_y - 0.25 * p.height)
+
+
+def apply_tpose_to_proportions(p: Proportions) -> Proportions:
+    """Straighten proportions to horizontal T-pose."""
+    return p.adjusted(tip_y=p.arm_y, wrist=0.55)
+
+
 PROPORTION_FIELDS = tuple(f.name for f in fields(Proportions))
+

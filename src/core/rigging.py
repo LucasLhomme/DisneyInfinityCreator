@@ -53,8 +53,35 @@ def distance_weights(wverts, anchors) -> np.ndarray:
         ab = b - a
         t = np.clip(((wverts - a) @ ab) / max(ab @ ab, 1e-12), 0, 1)
         d[:, j] = np.linalg.norm(wverts - (a + t[:, None] * ab), axis=1)
+
+    # Topological zoning to avoid cross-body bleed:
+    shoulder_x = abs(anchors["Shoulder_Left"][0])
+    crotch_y = anchors["HipsLow"][1]
+    neck_y = anchors["Neck"][1]
+
+    for j, (bname, _, _, _) in enumerate(bones):
+        is_arm = bname.startswith(("Clavicle_", "Shoulder_", "Elbow_", "Hand_"))
+        is_leg = bname.startswith(("Thigh_", "Knee_", "Ankle_", "Ball_"))
+        is_head = bname in ("Neck", "Head")
+
+        # Head bones shouldn't reach below chest
+        if is_head:
+            d[wverts[:, 1] < crotch_y + 0.15 * (neck_y - crotch_y), j] += 10.0
+        # Leg bones shouldn't reach above chest
+        if is_leg:
+            d[wverts[:, 1] > neck_y, j] += 10.0
+        # Arm bones shouldn't reach lower legs
+        if is_arm:
+            d[wverts[:, 1] < crotch_y - 0.1 * (neck_y - crotch_y), j] += 10.0
+        # Left arm shouldn't reach far right side
+        if is_arm and bname.endswith("_Left"):
+            d[wverts[:, 0] < -0.05 * shoulder_x, j] += 10.0
+        # Right arm shouldn't reach far left side
+        if is_arm and bname.endswith("_Right"):
+            d[wverts[:, 0] > 0.05 * shoulder_x, j] += 10.0
+
     nearest = d.min(1, keepdims=True)
-    w = np.where(d <= nearest * 1.6 + 1e-6, 1.0 / (d + 1e-4) ** 4, 0.0)
+    w = np.where(d <= nearest * 1.5 + 1e-6, 1.0 / (d + 1e-4) ** 4, 0.0)
     return w / w.sum(1, keepdims=True)
 
 
@@ -69,10 +96,14 @@ def fill_islands(wverts, weights, log: Log) -> np.ndarray:
 
 def rigid_head(wverts, weights, names, anchors, log: Log) -> np.ndarray:
     shoulder_x = abs(anchors["Shoulder_Left"][0])
-    above = (wverts[:, 1] >= anchors["Head"][1]) & (np.abs(wverts[:, 0]) < shoulder_x * 1.5)
+    neck_y = anchors["Neck"][1]
+    head_y = anchors["Head"][1]
+    head_top = anchors.get("HeadTop", np.array([0, head_y + 0.2, 0]))[1]
+    # Protect the entire head from neck line upwards across the head volume
+    above = (wverts[:, 1] >= neck_y - 0.02 * (head_y - neck_y)) & (np.abs(wverts[:, 0]) < max(shoulder_x * 1.8, 0.45 * (head_top - neck_y)))
     weights[above] = 0.0
     weights[above, names.index("Head")] = 1.0
-    log(f"  {above.sum()} vertices above the head joint made rigid (eyes stay in place)")
+    log(f"  {above.sum()} vertices of the head made rigid (face, eyes and hat stay 100% intact)")
     return weights
 
 

@@ -303,6 +303,39 @@ class BaseCharacter:
                 parts.append((verts, tris, uvs, tex or fallback))
         return parts
 
+    def deform_preview_parts(self, posed_world: np.ndarray) -> list[np.ndarray]:
+        """Return posed vertex coordinates for each primitive in preview_parts."""
+        from src.core.rig import skin
+
+        if not hasattr(self, "_cached_prim_skin_data"):
+            cache = []
+            for mesh in self.meshes:
+                bone_map = [self.bone_names.index(bn) if bn in self.bone_names else -1 for bn in mesh.bone_names]
+                for prim in mesh.primitives:
+                    verts, tris, _ = self.primitive_geometry(prim)
+                    if len(tris) == 0:
+                        continue
+                    n = prim.vertex_count
+                    if prim.standard and n > 0:
+                        s1 = np.frombuffer(self._vbuf[prim.s1_offset:prim.s1_offset + n * S1_STRIDE], np.uint8).reshape(n, S1_STRIDE)
+                        cache.append((verts, s1[:, 0:4], s1[:, 4:8], mesh.bind_world, bone_map))
+                    else:
+                        cache.append((verts, None, None, None, None))
+            self._cached_prim_skin_data = cache
+
+        posed_parts = []
+        for verts, idx, wq, bind_world, bone_map in self._cached_prim_skin_data:
+            if idx is None or bind_world is None:
+                posed_parts.append(verts)
+                continue
+            mesh_posed_world = bind_world.copy()
+            for i, bi in enumerate(bone_map):
+                if 0 <= bi < len(posed_world):
+                    mesh_posed_world[i] = posed_world[bi]
+            posed_v = skin(verts, idx, wq, bind_world, mesh_posed_world)
+            posed_parts.append(posed_v)
+        return posed_parts
+
 
 def looks_like_normal_map(img) -> bool:
     """Tangent-space normal maps: DXT5nm (red saturated, alpha = X) or plain (bluish, blue channel high)."""
