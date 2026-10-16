@@ -24,7 +24,9 @@ abilities of the figure you picked, and no original character is replaced.
 - [Limitations](#limitations)
 - [Troubleshooting](#troubleshooting)
 - [For developers](#for-developers)
+- [The DIM2 Modding Ecosystem](#the-dim2-modding-ecosystem)
 - [Credits](#credits)
+- [Support & Sponsor](#support--sponsor)
 
 ---
 
@@ -242,9 +244,22 @@ owners of the game.
 
 ---
 
+## The DIM2 Modding Ecosystem
+
+Disney Infinity Creator is part of the **DIM2** open-source modding suite for Disney Infinity 3.0:
+
+| Project | Description | Link |
+| :--- | :--- | :---: |
+| **CrabeLoader** | Next-generation C++23 modloader, ASI bootstrap, and low-level engine hook framework. | [GitHub](https://github.com/LucasLhomme/CrabeLoader) |
+| **CrabeMenu** | Autonomous in-game mod menu (`F5`) with full gamepad and keyboard navigation. | [GitHub](https://github.com/LucasLhomme/CrabeMenu) |
+| **DisneyInfinityPortal** | Physical Disney Infinity Base (Portal) support & figure progress gateway. | [GitHub](https://github.com/LucasLhomme/DisneyInfinityPortal) |
+
+---
+
 ## Support & Sponsor
 
 If you find Disney Infinity Creator helpful and want to support ongoing tools and reverse-engineering:
 
 ☕ **[Buy Me a Coffee](https://buymeacoffee.com/crabecrabe)** (`buymeacoffee.com/crabecrabe`)
+
 
