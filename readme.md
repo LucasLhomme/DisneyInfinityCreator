@@ -239,3 +239,12 @@ browse or rig:
 
 Disney Infinity and all related characters are trademarks of their respective owners. This project is meant for
 owners of the game.
+
+---
+
+## Support & Sponsor
+
+If you find Disney Infinity Creator helpful and want to support ongoing tools and reverse-engineering:
+
+☕ **[Buy Me a Coffee](https://buymeacoffee.com/crabecrabe)** (`buymeacoffee.com/crabecrabe`)
+
