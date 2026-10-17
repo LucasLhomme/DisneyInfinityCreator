@@ -3,8 +3,8 @@
 Deleting goes to the Windows recycle bin. After every change the shared archives (zz_creator_shared: textures and
 icons of all characters) are rebuilt, so a removed character leaves nothing behind in the game.
 
-Usage: python tools/manage_mods.py            (menu)
-       python tools/manage_mods.py --list | --rebuild | --clean    (one action, no menu)
+Usage: python src/manage_mods.py            (menu)
+       python src/manage_mods.py --list | --rebuild | --clean    (one action, no menu)
 """
 import argparse
 import json
