@@ -9,10 +9,13 @@ from dataclasses import dataclass, fields, replace
 
 import numpy as np
 import trimesh
+from scipy.spatial import ConvexHull
 
 from src.core.base_character import BaseCharacter
 
 SIDES = (("Left", 1.0), ("Right", -1.0))
+CROTCH_MIN = 0.38  # below this the 'crotch' found is probably the hem of a coat or skirt
+NECK_WINDOW = 0.10  # how far above the arm line the neck may be (fraction of the height)
 
 
 @dataclass
@@ -37,6 +40,8 @@ class Proportions:
     ankle_y: float
     ankle_z: float
     toe_z: float
+    elbow: float = 0.5
+    """Elbow position along shoulder -> hand, 0..1."""
 
     def adjusted(self, **changes) -> "Proportions":
         return replace(self, **changes)
@@ -65,6 +70,57 @@ def _sections(mesh: trimesh.Trimesh, y: float) -> np.ndarray:
     return np.asarray(seg, float).reshape(-1, 3) if len(seg) else np.zeros((0, 3))
 
 
+SIGNIFICANT = 0.4
+
+
+def _body_loop(mesh: trimesh.Trimesh, y: float, keep=None) -> np.ndarray:
+    """Points (K, 3) of the biggest connected outline of the cross-section at height y.
+
+    Hair strands, capes, skirts and wings that hang free next to the body give their own separate outlines; taking
+    the whole section (min/max of everything) drags the measured centre towards them. `keep` filters the segment
+    midpoints (e.g. one side of the body)."""
+    try:
+        seg = trimesh.intersections.mesh_plane(mesh, plane_normal=[0, 1, 0], plane_origin=[0, y, 0])
+    except (ValueError, IndexError):
+        return np.zeros((0, 3))
+    if len(seg) == 0:
+        return np.zeros((0, 3))
+    seg = np.asarray(seg, float)
+    if keep is not None:
+        seg = seg[keep(seg.mean(axis=1))]
+        if len(seg) == 0:
+            return np.zeros((0, 3))
+    ends = np.round(seg.reshape(-1, 3), 5)
+    _, inverse = np.unique(ends, axis=0, return_inverse=True)
+    inverse = inverse.reshape(-1, 2)
+    parent = np.arange(inverse.max() + 1)
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    for a, b in inverse:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    label = np.array([find(a) for a in inverse[:, 0]])
+    outlines = []
+    for lab in np.unique(label):
+        pts = seg[label == lab].reshape(-1, 3)
+        try:
+            area = float(ConvexHull(pts[:, [0, 2]]).volume)  # 2-D hull: .volume is the area
+        except Exception:  # degenerate (flat or collinear) outline: a cape edge-on, a strand
+            area = 0.0
+        outlines.append((area, pts))
+    top = max(o[0] for o in outlines)
+    if top <= 0:
+        return np.zeros((0, 3))
+    # Layered clothing gives several near-identical outlines for one body: keep every outline that is big enough
+    # compared with the biggest, drop the thin or small ones (hair strands, capes edge-on, wing tips).
+    return np.vstack([pts for area, pts in outlines if area >= SIGNIFICANT * top])
+
+
 def _crosses_midline(mesh: trimesh.Trimesh, y: float, x_limit: float) -> bool:
     try:
         seg = trimesh.intersections.mesh_plane(mesh, plane_normal=[0, 1, 0], plane_origin=[0, y, 0])
@@ -78,7 +134,12 @@ def _crosses_midline(mesh: trimesh.Trimesh, y: float, x_limit: float) -> bool:
     return bool(np.any(inside & (np.sign(x0) != np.sign(x1))))
 
 
-def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tuple[Proportions, FitReport]:
+def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter,
+            ignore=None) -> tuple[Proportions, FitReport]:
+    """`ignore`: per-vertex flags of parts the measurement must not see (cape, weapon...)."""
+    from src.core.accessories import strip
+
+    vertices, faces = strip(vertices, faces, ignore)
     mesh = trimesh.Trimesh(vertices, faces, process=False)
     x, y, z = vertices.T
     h = float(y.max())
@@ -142,7 +203,7 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tup
 
     # Neck: narrowest central cross-section just above the arm line.
     neck_y, best_w = arm_y + 0.01 * h, None
-    for yy in np.linspace(arm_y + 0.01 * h, min(arm_y + 0.18 * h, 0.95 * h), 25):
+    for yy in np.linspace(arm_y + 0.01 * h, min(arm_y + NECK_WINDOW * h, 0.95 * h), 25):
         pts = _sections(mesh, yy)
         pts = pts[np.abs(pts[:, 0]) < shoulder_x] if len(pts) else pts
         if len(pts) >= 3:
@@ -163,15 +224,25 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tup
             misses += 1
             if misses >= 3:
                 break
+    # Where the base figure's legs start, as a fraction of its height: the fallback when the cross-sections lie
+    # (a long coat or skirt joins across the midline down to its hem, so "the last joined section" is the hem).
+    thigh = base.joints.get("Thigh_Left") if base is not None else None
+    prior = float(np.clip(thigh[1] / base.height, 0.40, 0.56)) * h if thigh is not None else 0.47 * h
     if crotch_y is None or crotch_y < 0.15 * h or crotch_y > arm_y - 0.12 * h:
-        crotch_y = 0.45 * h
+        crotch_y = prior
         estimated.append("hips")
+    elif crotch_y < CROTCH_MIN * h and crotch_y < prior - 0.08 * h:
+        crotch_y = prior
+        estimated.append("hips (long coat or skirt?)")
     else:
         detected.append("hips")
 
     # Torso depth centre, halfway between crotch and arm line.
-    pts = _sections(mesh, (crotch_y + arm_y) / 2)
-    pts = pts[np.abs(pts[:, 0]) < shoulder_x] if len(pts) else pts
+    mid_y = (crotch_y + arm_y) / 2
+    pts = _body_loop(mesh, mid_y, keep=lambda m: np.abs(m[:, 0]) < shoulder_x)
+    if len(pts) < 3:
+        pts = _sections(mesh, mid_y)
+        pts = pts[np.abs(pts[:, 0]) < shoulder_x] if len(pts) else pts
     torso_z = float((pts[:, 2].min() + pts[:, 2].max()) / 2) if len(pts) else 0.0
 
     # Legs: centre of each leg's cross-section at knee height.
@@ -179,7 +250,9 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tup
     pts = _sections(mesh, knee_probe)
     legs = []
     for _, sx in SIDES:
-        p = pts[sx * pts[:, 0] > 0] if len(pts) else pts
+        p = _body_loop(mesh, knee_probe, keep=lambda m, sx=sx: sx * m[:, 0] > 0)
+        if len(p) < 3:
+            p = pts[sx * pts[:, 0] > 0] if len(pts) else pts
         if len(p):
             legs.append(((np.abs(p[:, 0]).min() + np.abs(p[:, 0]).max()) / 2, (p[:, 2].min() + p[:, 2].max()) / 2))
     if len(legs) == 2:
@@ -213,7 +286,57 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter) -> tup
         height=h, arm_y=float(arm_y), arm_z=arm_z, shoulder_x=shoulder_x, tip_x=float(tip_x), tip_y=float(tip_y),
         wrist=wrist, neck_y=neck_y, head_y=head_y, crotch_y=crotch_y, torso_z=torso_z,
         leg_x=leg_x, knee=0.48, knee_z=knee_z, ankle_y=ankle_y, ankle_z=ankle_z, toe_z=toe_z)
-    return props, FitReport(detected, estimated)
+    return calibrate(props), FitReport(detected, estimated)
+
+
+# Where the game puts its joints, learned from its own figures (tools/fit_calibration.py): 70 humanoid figures were
+# raised into a T-pose with their own skeleton and measured like any model; each joint is then predicted from the
+# raw measurements by a small linear model (fractions of the height; `wrist` is the 0-1 position along the arm).
+# Leave-one-out error, raw -> calibrated (% of the height): shoulder width 4.3 -> 1.7 (the raw edge of the torso is
+# fooled by puffy sleeves and hair; the arm span is not), hand 6.2 -> 2.9, knee depth 3.0 -> 2.0, neck 4.6 -> 4.3,
+# arm depth 2.1 -> 1.9.
+# Not calibrated on purpose: the hips (the figures' short legs and big heads would pull a realistic model's hips up),
+# the arm height (learned on perfect T-poses, it would drop the shoulders of a model whose arms hang a little) and a
+# wrist found where it should be (the figures' big hands would pull it towards the elbow).
+CALIBRATION = {
+    "shoulder_x": (("shoulder_x", "tip_x"), (-0.0707, 0.0754, 0.3557), 0.25),
+    "hand_x": (("shoulder_x", "tip_x", "wrist"), (0.0824, -0.2900, 0.6287, 0.0190), 0.12),
+    "arm_z": (("arm_z",), (-0.0120, 0.8841), 0.06),
+    "knee_z": (("knee_z",), (0.0236, 0.6451), 0.06),
+    "neck_y": (("neck_y",), (0.1550, 0.7641), 0.06),
+}
+"""joint: (raw measurements used, (intercept, coefficients...), largest move allowed in fractions of the height)."""
+WRIST_PLAUSIBLE = (0.55, 0.9)
+"""A raw wrist outside this range sits on the forearm or in the hand (gloves, sleeves, bracelets): use the model."""
+
+
+def calibrate(p: Proportions) -> Proportions:
+    """Raw measurements -> where the game's own figures have their joints (see CALIBRATION)."""
+    h = p.height
+    raw = {"shoulder_x": p.shoulder_x / h, "tip_x": p.tip_x / h, "wrist": p.wrist,
+           "arm_z": p.arm_z / h, "knee_z": p.knee_z / h, "neck_y": p.neck_y / h}
+
+    def predict(name, current):
+        feats, c, limit = CALIBRATION[name]
+        value = c[0] + sum(k * raw[f] for k, f in zip(c[1:], feats))
+        return float(np.clip(value, current - limit, current + limit)) * h
+
+    old_hand = p.shoulder_x + p.wrist * (max(p.tip_x, p.shoulder_x + 0.05 * h) - p.shoulder_x)
+    # The game's joints often sit inside the torso edge, but rarely deeper than ~60% of it (10th percentile). An
+    # edge found beyond half the arm span is not the torso (puffy sleeves, hair): no floor then.
+    floor = 0.6 * p.shoulder_x if p.shoulder_x < 0.5 * p.tip_x else 0.0
+    shoulder_x = float(np.clip(max(predict("shoulder_x", raw["shoulder_x"]), floor), 0.05 * h, 0.8 * p.tip_x))
+    tip_x = max(p.tip_x, shoulder_x + 0.05 * h)
+    if WRIST_PLAUSIBLE[0] <= p.wrist <= WRIST_PLAUSIBLE[1]:
+        hand_x = old_hand  # keep the wrist where it was found on the mesh
+    else:
+        hand_x = predict("hand_x", old_hand / h)
+    wrist = float(np.clip((hand_x - shoulder_x) / (tip_x - shoulder_x), 0.45, 0.92))
+    arm_y = p.arm_y
+    neck_y = float(np.clip(predict("neck_y", raw["neck_y"]), arm_y + 0.01 * h, 0.97 * h))
+    head_y = neck_y + (p.head_y - p.neck_y) * (h - neck_y) / max(h - p.neck_y, 1e-6)
+    return p.adjusted(shoulder_x=shoulder_x, wrist=wrist, arm_z=predict("arm_z", raw["arm_z"]),
+                      knee_z=predict("knee_z", raw["knee_z"]), neck_y=neck_y, head_y=head_y)
 
 
 def build_anchors(p: Proportions, base: BaseCharacter) -> dict[str, np.ndarray]:
@@ -249,7 +372,7 @@ def build_anchors(p: Proportions, base: BaseCharacter) -> dict[str, np.ndarray]:
         hand = shoulder + p.wrist * (tip - shoulder)
         a[f"Shoulder_{side}"] = shoulder
         a[f"Hand_{side}"] = hand
-        a[f"Elbow_{side}"] = (shoulder + hand) / 2
+        a[f"Elbow_{side}"] = shoulder + p.elbow * (hand - shoulder)
         a[f"HandTip_{side}"] = tip
         a[f"Clavicle_{side}"] = along_torso(f"Clavicle_{side}", sx * 0.017 * h, p.torso_z - 0.015 * h)
         a[f"ClavicleHeat_{side}"] = np.array([sx * 0.017 * h, p.arm_y - 0.02 * h, p.torso_z - 0.015 * h])
@@ -342,3 +465,38 @@ def apply_tpose_to_proportions(p: Proportions) -> Proportions:
 
 PROPORTION_FIELDS = tuple(f.name for f in fields(Proportions))
 
+
+
+def fit_issues(p: Proportions, base: BaseCharacter) -> list[tuple[tuple[str, ...], str]]:
+    """(sliders concerned, advice) where the model's proportions differ from the base figure's by 20 % or more."""
+    out = []
+    j, bh = base.joints, max(base.height, 0.1)
+    h = max(p.height, 0.1)
+    name = base.display_name
+    try:
+        middle = base.bind_world[base.bone_names.index("Middle2_Left"), 3, :3]
+        base_arm = float(np.linalg.norm(middle - j["Shoulder_Left"])) / bh
+    except (ValueError, KeyError):
+        base_arm = None
+    arm = (max(p.tip_x, p.shoulder_x) - p.shoulder_x) / h
+    if base_arm and abs(arm / base_arm - 1) > 0.2:
+        out.append((("wrist", "elbow"),
+                    f"Arms are {abs(arm / base_arm - 1):.0%} {'longer' if arm > base_arm else 'shorter'} than "
+                    f"{name}'s: hands and elbows get stretched or squeezed when baked. Check 'Wrist position' (the "
+                    "dot must sit on the wrist) or pick a base with similar arms."))
+    base_sh = abs(float(j["Shoulder_Left"][0])) / bh
+    if base_sh > 0.02 and abs(p.shoulder_x / h / base_sh - 1) > 0.25:
+        out.append((("shoulder_x",),
+                    f"Shoulders are {abs(p.shoulder_x / h / base_sh - 1):.0%} "
+                    f"{'wider' if p.shoulder_x / h > base_sh else 'narrower'} than {name}'s: shoulders deform most "
+                    "here. Check 'Shoulder width' (the dot must sit on the arm joint, not the torso edge)."))
+    base_hips = float(j["Hips"][1]) / bh
+    if abs(p.crotch_y / h - base_hips) > 0.12:
+        out.append((("crotch_y", "knee"),
+                    f"Legs: {name} has {base_hips:.0%} of its height below the hips, your model "
+                    f"{p.crotch_y / h:.0%}. Check 'Hips (crotch)'; for a cartoon body, pick a short-legged base."))
+    return out
+
+
+def fit_advice(p: Proportions, base: BaseCharacter) -> list[str]:
+    return [text for _, text in fit_issues(p, base)]
