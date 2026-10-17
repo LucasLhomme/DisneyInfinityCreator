@@ -5,6 +5,13 @@ Commits : `type(zone): résumé` (types `feat`, `fix`, `perf`, `refactor`, `docs
 dit pourquoi et comment c'est vérifié. Publier une version : mettre à jour `VERSION` et ce journal ; GitHub
 Actions crée alors l'étiquette et la release.
 
+## [1.0.1] - 2026-10-17
+### Corrigé
+- Démarrage sans les données du jeu (archive « Source code » d'une release, sans `src/assets` ni `src/tools`) :
+  Creator plantait sur `roster.json` introuvable. Il affiche maintenant la liste des fichiers manquants et où
+  trouver le paquet complet. La release propose une archive complète, prête à l'emploi
+  (`DisneyInfinityCreator-1.0.1.zip`).
+
 ## [1.0.0] - 2026-10-17
 Points forts : icônes en jeu, relief des textures, mod partagé léger et `Manage_Mods.bat`, os de torsion du jeu,
 auto-fit calibré sur les figures officielles, documentation en anglais.
