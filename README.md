@@ -22,13 +22,11 @@ remplacé.
 - [Créer un personnage pas à pas](#créer-un-personnage-pas-à-pas)
 - [Comprendre le score de déformation](#comprendre-le-score-de-déformation)
 - [Gérer ses personnages](#gérer-ses-personnages)
-- [Outils en ligne de commande](#outils-en-ligne-de-commande)
 - [Jouer avec son personnage](#jouer-avec-son-personnage)
 - [Conseils pour un bon résultat](#conseils-pour-un-bon-résultat)
 - [Fonctionnement](#fonctionnement)
 - [Limites connues](#limites-connues)
 - [Dépannage](#dépannage)
-- [Pour les développeurs](#pour-les-développeurs)
 - [Crédits](#crédits)
 
 ---
@@ -145,13 +143,6 @@ le portrait HUD 128 px (`ui/icons/hud_playericons_<acteur>.mtb` + texture, nomm�
 `_sm`, et la silhouette `_s`). `<acteur>_icon.png` reste à la racine du mod. Le bouton « Preview » montre les trois
 images. Le jeu ne lit ces images que dans ses archives : Creator les ajoute à celles du mod partagé (voir
 [Gérer ses personnages](#gérer-ses-personnages)).
-
-**Audit des animations (outil à part, hors Creator).** Glisse un modèle sur `Audit_Animations.bat` (base par défaut
-TCW_Anakin ; une autre en 2ᵉ argument). L'outil construit le rig, joue toutes les animations dessus et écrit dans
-`build\audit\<modèle>\` : `report.txt` (score statique + une ligne par animation : part d'arêtes déformées de plus de 2×,
-pire image, zones touchées), `report.json` et des images de la pire image des animations problématiques (arêtes
-étirées en rouge). Les clips sont les mouvements procéduraux de Creator, pas les animations d'origine du jeu. Les doigts
-suivent la main dans ces clips (avant, ils restaient en arrière et déchiraient les mains à l'écran).
 
 **Proportions (tête, torse, bras, avant-bras, jambes).** Onglet Squelette, cinq curseurs : « Head » (×0,8 à ×1,5,
 la tête grandit depuis la mâchoire, le menton reste en place, le cou s'épaissit à moitié), « Torso », « Arms », « Forearms » et « Legs » (×0,8 à ×1,8,
@@ -302,18 +293,6 @@ déformées de plus de 2 fois (30 %) et la part des arêtes déchirées à plus 
 - Ce score mesure la géométrie, **pas l'apparence** : un modèle peut être « bon » et mal rigué (cheveux qui suivent les
   bras). Contrôle toujours visuellement, et verrouille les pièces gênantes sur le bon os.
 
-## Outils en ligne de commande
-
-Sans ouvrir l'interface (à lancer avec `.\.venv\Scripts\python.exe`) :
-
-| Commande | Rôle |
-| :--- | :--- |
-| `tools\batch_check.py dossier [--base ACTOR \| --suggest] [--blender chemin]` | Place et rigge tous les modèles d'un dossier, affiche le score ; avec `--suggest`, essaie toutes les figures et donne les meilleures |
-| `tools\capture.py modele.glb [--base ACTOR] [--amount 1.0] [--out dossier]` | Construit le rig d'un modèle et enregistre des images en 3 vues (repos, bras levés, marche, avec les arêtes étirées en rouge) et `report.txt` dans `build\captures\` |
-| `Capture_Model.bat` | Même chose en glissant un modèle sur le fichier |
-| `Audit_Animations.bat` | Audit des animations d'un modèle (rapport + images), hors Creator |
-| `Manage_Mods.bat` / `tools\manage_mods.py` | Gérer les personnages installés (voir plus haut) |
-
 ## Jouer avec son personnage
 
 1. **Redémarre le jeu** : les nouveaux personnages ne sont chargés qu'au démarrage.
@@ -402,56 +381,6 @@ maillage est remplacé par le tien, sous un nouveau nom.
 | Pliages raides ou en blocs | Renseigne le chemin de Blender (onglet Rig & Export) |
 | Le personnage glisse sans bouger les jambes | Animations de la base absentes de l'installation : réinstalle ou vérifie les fichiers via Steam |
 | « already a figure of the game » | Choisis un autre nom d'acteur interne |
-
-## Pour les développeurs
-
-```
-src/
-  core/       logique pure, sans interface
-    octane_scene.py, luac.py, material_bundle.py        lecture/écriture sans perte .oct/.bent, .dnax, .mtb
-    base_character.py, base_pack.py, roster.py          figures de base
-    skeleton_map.py                                      articulations Creator -> os de chaque figure
-    model.py, skeleton.py, rig.py, rigging.py            modèle importé, articulations, skinning
-    quality.py, ranking.py                               score de déformation, classement des bases
-    cleaner.py, errorlog.py                              nettoyage Blender intégré, journal d'erreurs
-    octane.py, exporter.py, mod_writer.py, textures.py   sortie du mod
-    icon.py, normalmap.py, twist.py                      icônes, relief, os de torsion
-    shared.py, octane_zip.py                             mod partagé, archives chiffrées du jeu
-  render/     viewport OpenGL hors écran (aussi utilisé par tools/capture.py)
-  ui/         interface customtkinter
-  scripts/    étapes Blender en arrière-plan (nettoyage, poids bone heat, figer un .glb rigué)
-  assets/     bases/ (pack des figures), roster.json, shader_layouts.json, templates/
-  tools/      QuickBMS et le ré-encrypteur d'archives (offsetting.exe)
-tools/        batch_check.py, capture.py, audit.py, manage_mods.py, scripts qui régénèrent src/assets
-              depuis une installation du jeu, outils de mesure (roundtrip.py, fit_calibration.py, twist_profiles.py)
-tests/        tests unitaires (pytest)
-```
-
-Tests : `.\.venv\Scripts\python.exe -m pytest tests`.
-
-`tools/roundtrip.py <ACTEUR>` refait une figure officielle à travers Creator et la compare à l'originale (forme,
-poids, squelette) ; `--true-skeleton` et `--official-weights` isolent chaque source d'erreur. `Pack_Assets.bat`
-regroupe `src/assets` en une archive pour une session de développement distante.
-
-### Ressources du jeu
-
-`src/assets/` (figures de base extraites du jeu) et `src/tools/` (QuickBMS, `offsetting.exe`) sont fournis avec le
-dépôt : Creator fonctionne dès le clonage. Pour les régénérer depuis une installation du jeu :
-
-| Script | Produit |
-| :--- | :--- |
-| `tools/build_roster.py <virtualreaderpc_data.lua> <toybox_actors.lua>` | `roster.json` : chaque figure jouable |
-| `tools/build_shader_table.py <racine décryptée du jeu>` | `shader_layouts.json` : emplacement des textures par shader |
-| `tools/build_base_pack.py <dossier du jeu>` | `bases/` : modèle, `.dnax`, animations et textures d'aperçu de chaque figure |
-
-
-### Conventions
-
-- Branche principale : `main`. Une modification = un commit avec un message clair.
-- Commits `type(zone): résumé` avec un corps qui dit pourquoi ; chaque version est décrite dans `CHANGELOG.md`.
-  Publier une version : mettre à jour `VERSION` et le journal, GitHub Actions crée l'étiquette et la release.
-- `build/`, `backups/`, `.venv/` et `src/config/settings.json` (chemins personnels) ne sont pas suivis, ni les
-  modèles 3D (`*.glb`, `*.fbx`, `*.dae`…).
 
 ## Crédits
 

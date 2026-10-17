@@ -21,13 +21,11 @@ abilities, and no original character is replaced.
 - [Creating a character step by step](#creating-a-character-step-by-step)
 - [Managing your characters](#managing-your-characters)
 - [Understanding the deformation score](#understanding-the-deformation-score)
-- [Command-line tools](#command-line-tools)
 - [Playing your character](#playing-your-character)
 - [Tips for a good result](#tips-for-a-good-result)
 - [How it works](#how-it-works)
 - [Known limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
-- [For developers](#for-developers)
 - [Credits](#credits)
 
 ---
@@ -140,13 +138,6 @@ filter, game pose once rigged) and writes the pictures in the format of the game
 and the `_s` silhouette). `<actor>_icon.png` stays at the root of the mod. The "Preview" button shows the three
 pictures. The game only reads these pictures from its archives: Creator adds them to the shared mod's archives (see
 [Managing your characters](#managing-your-characters)).
-
-**Animation audit (separate tool, outside Creator).** Drop a model onto `Audit_Animations.bat` (default base
-TCW_Anakin; another one as 2nd argument). The tool builds the rig, plays every animation on it and writes to
-`build\audit\<model>\`: `report.txt` (static score + one line per animation: share of edges deformed more than 2×,
-worst frame, affected zones), `report.json` and pictures of the worst frame of the problematic animations (stretched
-edges in red). The clips are Creator's procedural motions, not the game's original animations. Fingers follow the
-hand in these clips.
 
 **Proportions (head, torso, arms, forearms, legs).** Skeleton tab, five sliders: "Head" (×0.8 to ×1.5, the head grows
 from the jaw, the chin stays in place, the neck thickens by half), "Torso", "Arms", "Forearms" and "Legs" (×0.8 to
@@ -293,18 +284,6 @@ than 2× (30 %) and the share of edges torn beyond 3× (20 %).
 - This score measures geometry, **not appearance**: a model can be "good" and badly rigged (hair following the arms).
   Always check visually, and lock troublesome pieces to the right bone.
 
-## Command-line tools
-
-Without opening the interface (run with `.\.venv\Scripts\python.exe`):
-
-| Command | Purpose |
-| :--- | :--- |
-| `tools\batch_check.py folder [--base ACTOR \| --suggest] [--blender path]` | Places and rigs every model of a folder and prints the score; with `--suggest`, tries every figure and gives the best |
-| `tools\capture.py model.glb [--base ACTOR] [--amount 1.0] [--out folder]` | Builds a model's rig and saves 3-view pictures (rest, arms up, walk, with stretched edges in red) and `report.txt` to `build\captures\` |
-| `Capture_Model.bat` | Same, by dropping a model onto the file |
-| `Audit_Animations.bat` | Animation audit of a model (report + pictures), outside Creator |
-| `Manage_Mods.bat` / `tools\manage_mods.py` | Manage the installed characters (see above) |
-
 ## Playing your character
 
 1. **Restart the game**: new characters are only loaded at startup.
@@ -390,56 +369,6 @@ under a new name.
 | Stiff or blocky bends | Set the Blender path (Rig & Export tab) |
 | The character slides without moving its legs | The base's animations are missing from the install: reinstall or verify the files through Steam |
 | "already a figure of the game" | Choose another internal actor name |
-
-## For developers
-
-```
-src/
-  core/       pure logic, no UI
-    octane_scene.py, luac.py, material_bundle.py        lossless read/write of .oct/.bent, .dnax, .mtb
-    base_character.py, base_pack.py, roster.py          base figures
-    skeleton_map.py                                      Creator joints -> bones of each figure
-    model.py, skeleton.py, rig.py, rigging.py            imported model, joints, skinning
-    quality.py, ranking.py                               deformation score, base ranking
-    cleaner.py, errorlog.py                              built-in Blender cleanup, error log
-    octane.py, exporter.py, mod_writer.py, textures.py   mod output
-    icon.py, normalmap.py, twist.py                      icons, relief, twist bones
-    shared.py, octane_zip.py                             shared mod, the game's encrypted archives
-  render/     off-screen OpenGL viewport (also used by tools/capture.py)
-  ui/         customtkinter interface
-  scripts/    background Blender steps (cleanup, bone-heat weights, freezing a rigged .glb)
-  assets/     bases/ (figure pack), roster.json, shader_layouts.json, templates/
-  tools/      QuickBMS and the archive re-encrypter (offsetting.exe)
-tools/        batch_check.py, capture.py, audit.py, manage_mods.py, scripts that rebuild src/assets
-              from a game install, measuring tools (roundtrip.py, fit_calibration.py, twist_profiles.py)
-tests/        unit tests (pytest)
-```
-
-Tests: `.\.venv\Scripts\python.exe -m pytest tests`.
-
-`tools/roundtrip.py <ACTOR>` runs an official figure through Creator and compares it with the original (shape,
-weights, skeleton); `--true-skeleton` and `--official-weights` isolate each source of error. `Pack_Assets.bat` packs
-`src/assets` into one archive for a remote development session.
-
-### Game resources
-
-`src/assets/` (base figures extracted from the game) and `src/tools/` (QuickBMS, `offsetting.exe`) ship with the
-repository: Creator works right after cloning. To rebuild them from a game install:
-
-| Script | Produces |
-| :--- | :--- |
-| `tools/build_roster.py <virtualreaderpc_data.lua> <toybox_actors.lua>` | `roster.json`: every playable figure |
-| `tools/build_shader_table.py <decrypted game root>` | `shader_layouts.json`: texture slots per shader |
-| `tools/build_base_pack.py <game folder>` | `bases/`: model, `.dnax`, animations and preview textures of each figure |
-
-
-### Conventions
-
-- Main branch: `main`. Commits `type(scope): summary` with a body that says why; each version is described in
-  `CHANGELOG.md` (in French). Releasing: update `VERSION` and the changelog, GitHub Actions creates the tag and the
-  release.
-- `build/`, `backups/`, `.venv/` and `src/config/settings.json` (personal paths) are not tracked, nor are 3D models
-  (`*.glb`, `*.fbx`, `*.dae`…).
 
 ## Credits
 

@@ -4,5 +4,5 @@ REM Apres chaque changement, les archives partagees (mods\zz_creator_shared : te
 REM donc un personnage supprime ne laisse rien dans le jeu. Ferme le jeu avant.
 chcp 65001 >nul
 cd /d "%~dp0"
-".venv\Scripts\python.exe" tools\manage_mods.py %*
+".venv\Scripts\python.exe" src\manage_mods.py %*
 pause
