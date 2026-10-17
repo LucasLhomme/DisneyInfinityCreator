@@ -56,12 +56,12 @@ def prefixes_used_by_other_mods(game_dir: Path, mod_name: str) -> set[str]:
     return used
 
 
-def choose_texture_ids(actor: str, game_dir: Path, mod_name: str) -> TextureIds:
+def choose_texture_ids(actor: str, game_dir: Path, mod_name: str, prefix: str | None = None) -> TextureIds:
+    """`prefix`: archive to use (the shared one); otherwise one no other mod ships (one archive per character)."""
     digest = hashlib.sha256(f"DisneyInfinityCreator/{actor.lower()}".encode()).hexdigest()
     taken = prefixes_used_by_other_mods(game_dir, mod_name)
     vanilla = Path(game_dir) / "assets" / "textures"
-    prefix = None
-    for i in range(0, len(digest) - 1, 2):
+    for i in ([] if prefix else range(0, len(digest) - 1, 2)):
         candidate = digest[i:i + 2]
         if candidate not in taken and (vanilla / f"{candidate}.zip").exists():
             prefix = candidate
@@ -82,7 +82,13 @@ def _listing(archive: Path) -> set[str]:
             if re.match(r"\s+[0-9a-f]{8}\s+\d+\s+\S", line)}
 
 
-def build_texture_archive(ids: TextureIds, diffuse: Image.Image, game_dir: Path, work: Path, out_zip: Path) -> int:
+def normal_or_flat(normal: Image.Image | None) -> Image.Image:
+    """The relief normal map, or a flat one (the model then looks smooth, as before)."""
+    return normal.convert("RGBA") if normal is not None else Image.new("RGBA", (256, 256), FLAT_NORMAL_RGBA)
+
+
+def build_texture_archive(ids: TextureIds, diffuse: Image.Image, game_dir: Path, work: Path, out_zip: Path,
+                          normal: Image.Image | None = None) -> int:
     """Rebuild <prefix>.zip = vanilla content + our two textures. Returns the number of entries."""
     for tool in (QUICKBMS, BMS_SCRIPT, REENCRYPTER):
         if not tool.exists():
@@ -96,7 +102,7 @@ def build_texture_archive(ids: TextureIds, diffuse: Image.Image, game_dir: Path,
     root = extract / ids.prefix
     (root / "textures").mkdir(parents=True, exist_ok=True)
     (root / "textures" / f"{ids.diffuse}.tbody").write_bytes(dds_bytes(diffuse.convert("RGB"), "DXT1"))
-    (root / "textures" / f"{ids.normal}.tbody").write_bytes(dds_bytes(Image.new("RGBA", (256, 256), FLAT_NORMAL_RGBA), "DXT5"))
+    (root / "textures" / f"{ids.normal}.tbody").write_bytes(dds_bytes(normal_or_flat(normal), "DXT5"))
     archive = work / f"{ids.prefix}.zip"
     subprocess.run([str(REENCRYPTER), "whyjustwhy", "-e", ZIP_KEY, str(root), str(archive)],
                    check=True, capture_output=True, creationflags=_NO_WINDOW)
@@ -110,7 +116,8 @@ def build_texture_archive(ids: TextureIds, diffuse: Image.Image, game_dir: Path,
     return len(got)
 
 
-def export_loose_textures(ids: TextureIds, diffuse: Image.Image, mod_dir: Path) -> list[Path]:
+def export_loose_textures(ids: TextureIds, diffuse: Image.Image, mod_dir: Path,
+                          normal: Image.Image | None = None) -> list[Path]:
     """Export diffuse and normal maps as loose .tbody DDS containers for CrabeLoader V2 VFS.
 
     CrabeLoader V2 hooks CreateFile via VfsOverrideManager and serves mods/<slug>/textures/<hash>.tbody
@@ -122,6 +129,6 @@ def export_loose_textures(ids: TextureIds, diffuse: Image.Image, mod_dir: Path) 
     normal_path = tex_dir / f"{ids.normal}.tbody"
 
     diffuse_path.write_bytes(dds_bytes(diffuse.convert("RGB"), "DXT1"))
-    normal_path.write_bytes(dds_bytes(Image.new("RGBA", (256, 256), FLAT_NORMAL_RGBA), "DXT5"))
+    normal_path.write_bytes(dds_bytes(normal_or_flat(normal), "DXT5"))
     return [diffuse_path, normal_path]
 
