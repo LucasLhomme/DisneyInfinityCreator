@@ -29,6 +29,10 @@ backups/
 src/config/settings.json
 
 
+# Game files: never shipped, extracted from the player's own game on first launch (src/core/game_data.py)
+src/assets/bases/
+src/assets/templates/
+
 # Test models and intermediate data (never commit models ripped from games)
 *.glb
 *.gltf

@@ -5,6 +5,16 @@ Commits : `type(zone): résumé` (types `feat`, `fix`, `perf`, `refactor`, `docs
 dit pourquoi et comment c'est vérifié. Publier une version : mettre à jour `VERSION` et ce journal ; GitHub
 Actions crée alors l'étiquette et la release.
 
+## [1.1.0] - 2026-10-17
+### Ajouté
+- Extraction des données du jeu au premier lancement : une fenêtre trouve le dossier de Disney Infinity 3.0 (ou le
+  fait choisir) et construit les 99 figures de base et le gabarit de matériau depuis la copie du joueur (2 min 30
+  sur le PC de test). Plus aucun fichier du jeu n'est distribué avec Creator : seules les métadonnées `roster.json` et
+  `shader_layouts.json` sont versionnées. Les scripts `.dnax`, rangés dans `characters/characters.zip` dans la
+  version Steam, sont lus directement dans l'archive. Le gabarit `skinned_body.mtb` est recréé à l'identique depuis
+  le matériau de Luke. Les fichiers extraits sont ceux du jeu d'origine (l'ancien paquet contenait un `.dnax` de
+  Luke modifié par un mod).
+
 ## [1.0.1] - 2026-10-17
 ### Corrigé
 - Démarrage sans les données du jeu (archive « Source code » d'une release, sans `src/assets` ni `src/tools`) :
