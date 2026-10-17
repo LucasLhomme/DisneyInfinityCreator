@@ -81,6 +81,7 @@ class _Mesh:
 
     def update(self, verts):
         verts = np.asarray(verts, np.float32)
+        self.verts = verts
         self.bounds = (verts.min(0), verts.max(0))
         normals = vertex_normals(verts.astype(float), self.faces).astype(np.float32)
         self.vbo.write(np.hstack([verts, normals, self.uvs]).astype("f4").tobytes())
@@ -118,6 +119,11 @@ class GLRenderer:
         self.base_points = np.zeros((0, 3), np.float32)
         self.show_base_skeleton = True
         self.overlay_base_skeleton = False
+        self.heat_lines = np.zeros((0, 3), np.float32)
+        self.select_lines = np.zeros((0, 3), np.float32)
+        self.show_heat = True
+        self.multi_view = False
+        self._bounds = None
         self.yaw, self.pitch, self.distance = 25.0, 10.0, 4.0
         self.target = np.array([0.0, 1.0, 0.0], np.float32)
         self._last = (0, 0)
@@ -135,6 +141,16 @@ class GLRenderer:
         if self.model:
             self.model.release()
         self.model = _Mesh(self.ctx, self.prog, verts, faces, uvs, texture) if verts is not None else None
+
+    def set_model_texture(self, texture: Image.Image):
+        """Swap the model's texture without rebuilding its mesh (live texture filters)."""
+        if not self.model:
+            return
+        if self.model.texture is not None:
+            self.model.texture.release()
+        img = texture.convert("RGBA")
+        self.model.texture = self.ctx.texture(img.size, 4, img.tobytes())
+        self.model.texture.build_mipmaps()
 
     def update_model_vertices(self, verts):
         if self.model:
@@ -165,6 +181,36 @@ class GLRenderer:
         self.base_lines = np.zeros((0, 3), np.float32) if lines is None else np.asarray(lines, np.float32)
         self.base_points = np.zeros((0, 3), np.float32) if points is None else np.asarray(points, np.float32)
 
+    def set_heat_lines(self, lines):
+        """Edges to draw in red on top of the model (the stretched ones), in posed positions."""
+        self.heat_lines = np.zeros((0, 3), np.float32) if lines is None else np.asarray(lines, np.float32)
+
+    def set_select_lines(self, lines):
+        """Edges of the piece picked by the user, drawn in magenta."""
+        self.select_lines = np.zeros((0, 3), np.float32) if lines is None else np.asarray(lines, np.float32)
+
+    def pick_vertex(self, x, y, radius=14.0):
+        """Index of the model vertex under the pixel (x, y) of the single-view camera, or None.
+
+        Projects every vertex to the screen; among those within `radius` pixels, the one nearest the camera wins
+        (so the front of the body is picked rather than what is behind it)."""
+        if self.model is None or self.multi_view:
+            return None
+        verts = self.model.verts.astype(np.float64)
+        proj = perspective(40.0, self.width / self.height, 0.02, 200.0)
+        view = look_at(self._eye(), self.target, np.array([0, 1, 0], np.float32))
+        clip = np.c_[verts, np.ones(len(verts))] @ (view @ proj).astype(np.float64)
+        w = clip[:, 3]
+        ahead = w > 1e-6
+        sx = (clip[:, 0] / np.where(ahead, w, 1) * 0.5 + 0.5) * self.width
+        sy = (1 - (clip[:, 1] / np.where(ahead, w, 1) * 0.5 + 0.5)) * self.height
+        scale = ctk.ScalingTracker.get_widget_scaling(self.label)
+        near = ahead & (np.hypot(sx - x * scale, sy - y * scale) <= radius * scale)
+        if not near.any():
+            return None
+        candidates = np.nonzero(near)[0]
+        return int(candidates[np.argmin(w[candidates])])
+
     def ghost_offset(self):
         if not (self.ghost and self.model):
             return np.zeros(3)
@@ -183,6 +229,7 @@ class GLRenderer:
             hi = np.maximum(hi, ghi + off)
         self.target = ((lo + hi) / 2).astype(np.float32)
         self.distance = float(max(np.linalg.norm(hi - lo), 0.5) * 1.6)
+        self._bounds = (np.asarray(lo, float), np.asarray(hi, float))
         self.render()
 
     # --- camera --------------------------------------------------------------
@@ -256,15 +303,84 @@ class GLRenderer:
             pts += [(i * step, 0, -r), (i * step, 0, r), (-r, 0, i * step), (r, 0, i * step)]
         return np.array(pts, np.float32)
 
+    # Fixed cameras of the "3 views" layout: (yaw, pitch, title).
+    VIEWS = ((0.0, 0.0, "front"), (90.0, 0.0, "side"), (0.0, 89.0, "top"))
+
+    def _view_distance(self, index, aspect, fallback):
+        """Camera distance that fits the whole scene in one narrow cell of the 3-views layout."""
+        if self._bounds is None:
+            return fallback
+        span = self._bounds[1] - self._bounds[0]
+        horizontal, vertical, depth = ((span[0], span[1], span[2]), (span[2], span[1], span[0]),
+                                       (span[0], span[2], span[1]))[index]
+        half_fov = np.tan(np.radians(20.0))
+        return float(max(horizontal / aspect, vertical) * 0.5 / half_fov * 1.15 + depth * 0.5)
+
     def render(self):
         self._pending = False
+        image = self.snapshot()
+        scale = ctk.ScalingTracker.get_widget_scaling(self.label)
+        ctk_image = ctk.CTkImage(light_image=image, dark_image=image,
+                                 size=(int(self.width / scale), int(self.height / scale)))
+        self.label.configure(image=ctk_image, text="")
+        self.label.image = ctk_image
+
+    def snapshot(self) -> Image.Image:
+        """Draw the scene (one view or the 3-views layout) and return it as an image; no window needed."""
         self.fbo.use()
+        self.ctx.viewport = (0, 0, self.width, self.height)
         self.ctx.clear(0.075, 0.075, 0.085)
+        if not self.multi_view:
+            self._draw_scene(self._eye(), self.target, self.width / self.height)
+        else:
+            cell = self.width // 3
+            saved = (self.yaw, self.pitch)
+            saved_distance = self.distance
+            for i, (yaw, pitch, _) in enumerate(self.VIEWS):
+                self.yaw, self.pitch = yaw, pitch
+                self.distance = self._view_distance(i, cell / self.height, saved_distance)
+                self.ctx.viewport = (i * cell, 0, cell, self.height)
+                self.ctx.scissor = (i * cell, 0, cell, self.height)
+                self.ctx.clear(0.075 + 0.012 * (i % 2), 0.075 + 0.012 * (i % 2), 0.085 + 0.012 * (i % 2),
+                               viewport=(i * cell, 0, cell, self.height))
+                self._draw_scene(self._eye(), self.target, cell / self.height)
+            self.yaw, self.pitch = saved
+            self.distance = saved_distance
+            self.ctx.scissor = None
+            self.ctx.viewport = (0, 0, self.width, self.height)
+
+        data = self.fbo.read(components=3, alignment=1)
+        return Image.frombytes("RGB", (self.width, self.height), data).transpose(Image.FLIP_TOP_BOTTOM)
+
+    def render_icon(self, center, radius: float, size: int = 256, yaw: float = 0.0) -> Image.Image:
+        """The model alone, seen from the front and framed on a sphere (the head), on a transparent background."""
+        fbo = self.ctx.simple_framebuffer((size, size), components=4)
+        fbo.use()
+        self.ctx.viewport = (0, 0, size, size)
+        self.ctx.clear(0.0, 0.0, 0.0, 0.0)
         self.ctx.enable(moderngl.DEPTH_TEST)
         self.ctx.enable(moderngl.BLEND)
         self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
-        proj = perspective(40.0, self.width / self.height, 0.02, 200.0)
-        view = look_at(self._eye(), self.target, np.array([0, 1, 0], np.float32))
+        fov = 40.0
+        distance = radius / np.tan(np.radians(fov / 2))
+        target = np.asarray(center, np.float32)
+        y = np.radians(yaw)
+        eye = target + distance * np.array([np.sin(y), 0.0, np.cos(y)], np.float32)
+        view = look_at(eye, target, np.array([0, 1, 0], np.float32))
+        self.prog["mvp"].write((view @ perspective(fov, 1.0, 0.02, 200.0)).astype("f4").tobytes())
+        if self.model:
+            self.model.draw()
+        data = fbo.read(components=4, alignment=1)
+        fbo.release()
+        self.fbo.use()
+        return Image.frombytes("RGBA", (size, size), data).transpose(Image.FLIP_TOP_BOTTOM)
+
+    def _draw_scene(self, eye, target, aspect):
+        self.ctx.enable(moderngl.DEPTH_TEST)
+        self.ctx.enable(moderngl.BLEND)
+        self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
+        proj = perspective(40.0, aspect, 0.02, 200.0)
+        view = look_at(eye, target, np.array([0, 1, 0], np.float32))
         self.prog["mvp"].write((view @ proj).astype("f4").tobytes())
 
         self._draw_lines(self._grid(), (0.3, 0.3, 0.34, 1.0))
@@ -293,12 +409,11 @@ class GLRenderer:
             self.ctx.point_size = 7.0
             self._draw_lines(self.points, (1.0, 0.85, 0.2, 1.0), moderngl.POINTS, offset=(0.0, 0.0, 0.0))
 
+        if len(self.select_lines) > 0:
+            self.ctx.disable(moderngl.DEPTH_TEST)
+            self._draw_lines(self.select_lines, (1.0, 0.2, 0.9, 1.0))
 
-
-        data = self.fbo.read(components=3, alignment=1)
-        image = Image.frombytes("RGB", (self.width, self.height), data).transpose(Image.FLIP_TOP_BOTTOM)
-        scale = ctk.ScalingTracker.get_widget_scaling(self.label)
-        ctk_image = ctk.CTkImage(light_image=image, dark_image=image,
-                                 size=(int(self.width / scale), int(self.height / scale)))
-        self.label.configure(image=ctk_image, text="")
-        self.label.image = ctk_image
+        # Stretched edges of the current pose, in red, always on top.
+        if self.show_heat and len(self.heat_lines) > 0:
+            self.ctx.disable(moderngl.DEPTH_TEST)
+            self._draw_lines(self.heat_lines, (1.0, 0.15, 0.1, 1.0))
