@@ -52,7 +52,7 @@ class MaterialBundle:
         if matp is None:
             raise ValueError("no MATP sub-bundle")
         body, count = matp
-        q, strings = 0, []
+        q = 0
 
         def read_strings(q):
             n = struct.unpack_from("<I", body, q)[0]

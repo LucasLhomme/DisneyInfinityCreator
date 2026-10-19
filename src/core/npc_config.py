@@ -1,10 +1,8 @@
 """Configuration and runtime export generator for Enemies and NPCs."""
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 
 
 class EntityType(str, Enum):
@@ -84,7 +82,6 @@ class EntityConfig:
 def generate_lua_spawner_code(ident_slug: str, actor: str, display_name: str, config: EntityConfig) -> str:
     """Generate CrabeMenu / runtime registration Lua code for Enemy and NPC entities."""
     lua_name = display_name.replace("\\", "\\\\").replace('"', '\\"')
-    target_table = "Crabe.Enemies" if config.is_enemy else "Crabe.NPCs"
 
     anim_lines = "\n".join(f'        {k} = "{v}",' for k, v in config.animations.items())
 

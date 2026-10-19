@@ -72,7 +72,7 @@ def backup_existing(mod_dir: Path) -> Path | None:
     return target
 
 
-from src.core.npc_config import EntityConfig, EntityType, generate_lua_spawner_code
+from src.core.npc_config import EntityConfig, generate_lua_spawner_code
 from src.core.abilities import CharacterAbilities
 
 

@@ -11,7 +11,6 @@ import json
 import shutil
 from dataclasses import asdict, dataclass
 from functools import lru_cache
-from pathlib import Path
 
 from PIL import Image
 

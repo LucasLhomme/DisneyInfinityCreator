@@ -294,7 +294,7 @@ def parse_gltf_rig(file_path: str | Path) -> ParsedRig:
         raw = path.read_bytes()
         if len(raw) < 12 or raw[:4] != b"glTF":
             raise RigParsingError("Invalid GLB binary header.")
-        version, length = int.from_bytes(raw[4:8], "little"), int.from_bytes(raw[8:12], "little")
+        version = int.from_bytes(raw[4:8], "little")
         if version != 2:
             raise RigParsingError(f"Unsupported glTF version: {version} (expected version 2).")
 
@@ -341,7 +341,6 @@ def parse_gltf_rig(file_path: str | Path) -> ParsedRig:
         bv = buffer_views[bv_idx]
         buf_idx = bv.get("buffer", 0)
         byte_offset = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
-        byte_length = bv.get("byteLength", 0)
 
         if buf_idx >= len(bin_buffers):
             return np.array([])
@@ -360,7 +359,6 @@ def parse_gltf_rig(file_path: str | Path) -> ParsedRig:
         }
         dtype = dtype_map.get(comp_type, np.float32)
         total_items = count * num_comps
-        item_size = np.dtype(dtype).itemsize
 
         data = np.frombuffer(raw_bytes, dtype=dtype, count=total_items, offset=byte_offset)
         if num_comps > 1:

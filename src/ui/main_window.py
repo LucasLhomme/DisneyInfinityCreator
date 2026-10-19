@@ -978,7 +978,6 @@ class MainWindow(ctk.CTk):
             self.anim_status_label.configure(text="Please import an animation file first.", text_color=YELLOW)
             return
         ca = self.abilities.custom_animations[slot]
-        slot_label = self.anim_slot_menu.get()
         target_clip = None
         for name in self.timeline.clips:
             if slot in name.lower() or ca.name in name or (ca.track and ca.track.name in name):
@@ -1295,7 +1294,6 @@ class MainWindow(ctk.CTk):
                 self.model.match_target = self._base_brightness()
                 self.on_look(self.look_slider.get())
             self._show_base_rest(self.pose == "tpose" and self._model_shown_in_tpose())
-            game_dir = Path(self.game_entry.get().strip()) if hasattr(self, "game_entry") and self.game_entry.get() else None
             self._refresh_moveset_clips()
             self._update_abilities_summary()
             skeleton = base.skeleton

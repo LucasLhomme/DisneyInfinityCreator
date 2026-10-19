@@ -1,10 +1,8 @@
 """Character gameplay capabilities, moveset archetypes, special powers, and custom animations."""
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
 from src.core.base_character import BaseCharacter

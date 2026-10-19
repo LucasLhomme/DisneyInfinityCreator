@@ -12,9 +12,8 @@ from src.core.material_bundle import MaterialBundle, character_bundle
 from src.core.mod_writer import Identity, backup_existing, ship_motions_if_needed, write_text_files
 from src.core.octane import build_buffers, clone_bent, clone_dnax, material_count, patch_oct
 from src.core.octane_scene import Scene
-from src.core.paths import WORK_DIR
 from src.core.rig import RigResult
-from src.core.textures import build_texture_archive, choose_texture_ids, export_loose_textures
+from src.core.textures import choose_texture_ids, export_loose_textures
 
 
 @dataclass
@@ -184,7 +183,6 @@ def _verify(report: InstallReport, rig: RigResult, ident: Identity, mod_dir: Pat
               f".mtb: {n_materials} material(s), matching the .oct"))
     bent = Scene.load(char_dir / f"{ident.lower}.bent")
     c.append((f"characters/{ident.lower}/{ident.lower}.oct" in bent.strings, ".bent points to the clone's model"))
-    manifest = json.loads((mod_dir / "mod.json").read_text(encoding="utf-8"))
     tex_ok = len(list((mod_dir / "textures").glob("*.tbody"))) >= 2 or (mod_dir / f"textures/{prefix}.zip").is_file()
     c.append((tex_ok, "textures verified (.tbody loose VFS / .zip)"))
     for rel in ("skilltrees/ActorList.patch", "skilltrees/DataMap.patch", f"characters/{ident.actor}.lua",

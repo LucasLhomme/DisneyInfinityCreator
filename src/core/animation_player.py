@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 import math
-import re
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 
 from src.core.base_character import BaseCharacter
-from src.core.blender_rig import AnimationTrack, ParsedRig
+from src.core.blender_rig import AnimationTrack
 from src.core.paths import BMS_SCRIPT, QUICKBMS
 from src.core.rig import RigResult, skin
 from src.core.skeleton import SIDES
@@ -366,13 +365,11 @@ def evaluate_procedural_sprint(base: BaseCharacter, world: np.ndarray, t: float)
             posed[i] = world[i] @ m_lean
 
     leg_amp = math.radians(52.0)
-    knee_amp = math.radians(70.0)
     arm_amp = math.radians(50.0)
 
     for side, sx in SIDES:
         leg_phase = phase if sx > 0 else (phase + math.pi)
         thigh_angle = math.sin(leg_phase) * leg_amp
-        knee_angle = max(0.0, -math.sin(leg_phase)) * knee_amp
 
         thigh_idx = _find_bone(base, "Thigh", side)
         pivot_thigh = world[thigh_idx][3, :3]
@@ -411,13 +408,11 @@ def evaluate_procedural_walk(base: BaseCharacter, world: np.ndarray, t: float) -
     phase = 2.0 * math.pi * freq * t
 
     leg_amp = math.radians(35.0)
-    knee_amp = math.radians(45.0)
     arm_amp = math.radians(30.0)
 
     for side, sx in SIDES:
         leg_phase = phase if sx > 0 else (phase + math.pi)
         thigh_angle = math.sin(leg_phase) * leg_amp
-        knee_angle = max(0.0, -math.sin(leg_phase)) * knee_amp
 
         thigh_idx = _find_bone(base, "Thigh", side)
         pivot_thigh = world[thigh_idx][3, :3]
