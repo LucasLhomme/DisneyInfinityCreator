@@ -1,9 +1,6 @@
 # Journal des versions
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions [SemVer](https://semver.org/lang/fr/).
-Commits : `type(zone): résumé` (types `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `chore`), avec un corps qui
-dit pourquoi et comment c'est vérifié. Publier une version : mettre à jour `VERSION` et ce journal ; GitHub
-Actions crée alors l'étiquette et la release.
 
 ## [1.1.1] - 2026-10-19
 ### Corrigé
@@ -56,7 +53,7 @@ auto-fit calibré sur les figures officielles, documentation en anglais.
   (profil médian le long du membre, `tools/twist_profiles.py`) est maintenant copié sur le modèle. Au repos rien
   ne bouge ; l'effet n'est visible qu'en jeu.
 - `Pack_Assets.bat` (+ `tools/pack_assets.py`) : regroupe `src/assets` (≈ 900 fichiers extraits du jeu, non
-  versionnés) en une archive `build/assets_pack/assets.zip`, transférable en une fois vers une session cloud.
+  versionnés) en une archive `build/assets_pack/assets.zip`, pour les transférer vers une autre machine.
 - Curseur « V-shape » (onglet Squelette) : élargit la poitrine, hauteur par hauteur, jusqu'au côté intérieur du
   bras baissé de la base ; la taille et ce qui est déjà assez large (veste évasée) ne bougent pas. Comble le vide
   entre le torse et les bras en pose du jeu. Activé par « Disney Infinity style » et « Match the base ».
