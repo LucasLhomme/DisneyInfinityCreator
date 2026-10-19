@@ -2,6 +2,10 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions [SemVer](https://semver.org/lang/fr/).
 
+## [Non publié]
+### Corrigé
+- Modèles `.dae` avec plusieurs jeux d'UV : la texture utilise bien le premier jeu (set 0), comme dans Blender.
+
 ## [1.1.1] - 2026-10-19
 ### Corrigé
 - `Launch_Creator.bat` reprend une installation des dépendances interrompue (fenêtre fermée, coupure réseau) au lieu

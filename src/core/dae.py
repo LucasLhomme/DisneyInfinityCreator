@@ -87,8 +87,8 @@ def _primitives(mesh, geometry_id):
         ref = _ref(pos_in.get("source"))
         pos_src = vertices_id.get(ref, ref)
         positions = _source(mesh, pos_src)[:, :3]
-        uv_in = next((i for i in inputs if i.get("semantic") == "TEXCOORD" and int(i.get("set", 0)) == 0), None) or \
-            next((i for i in inputs if i.get("semantic") == "TEXCOORD"), None)
+        uv_inputs = [i for i in inputs if i.get("semantic") == "TEXCOORD"]
+        uv_in = next((i for i in uv_inputs if int(i.get("set", 0)) == 0), uv_inputs[0] if uv_inputs else None)
         uvs = _source(mesh, _ref(uv_in.get("source")))[:, :2] if uv_in is not None else None
         if kind == "triangles":
             p = np.array(_child(prim, "p").text.split(), dtype=np.int64).reshape(-1, stride)
