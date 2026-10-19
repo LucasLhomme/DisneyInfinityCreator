@@ -69,7 +69,8 @@ def clean_model(path: str | Path, blender: str | Path, max_vertices: int = 65000
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     report: list[str] = []
     source = path
-    if path.suffix.lower() == ".glb" and is_skinned_glb(path):
+    suffix = path.suffix.lower()
+    if suffix == ".glb" and is_skinned_glb(path):
         baked = work / "baked.glb"
         proc = subprocess.run([sys.executable, str(BAKE_SCRIPT), str(path), str(baked)], capture_output=True,
                               text=True, errors="replace", creationflags=flags)
@@ -77,7 +78,7 @@ def clean_model(path: str | Path, blender: str | Path, max_vertices: int = 65000
             raise RuntimeError("Freezing the skeleton failed:\n" + (proc.stdout + proc.stderr)[-800:])
         report.append("Rigged model: skeleton frozen in rest pose.")
         source = baked
-    if path.suffix.lower() == ".dae":
+    if suffix == ".dae":
         try:
             source = dae_to_glb(path, work / "from_dae.glb")
         except Exception as exc:  # noqa: BLE001
@@ -85,14 +86,15 @@ def clean_model(path: str | Path, blender: str | Path, max_vertices: int = 65000
         report.append("COLLADA (.dae): converted to .glb for Blender.")
     out = work / "clean.glb"
     proc = subprocess.run([str(blender), "--background", "--factory-startup", "--python-exit-code", "1",
-                           "--python", str(CLEAN_SCRIPT), "--", str(source), str(out), str(max_vertices), str(max_triangles)],
+                           "--python", str(CLEAN_SCRIPT), "--", str(source), str(out), str(max_vertices),
+                           str(max_triangles)],
                           capture_output=True, text=True, encoding="utf-8", errors="replace", creationflags=flags)
     lines = (proc.stdout + "\n" + proc.stderr).splitlines()
     clean_lines = [ln[len("[clean] "):] for ln in lines if ln.startswith("[clean]")]
     if proc.returncode != 0 or not out.is_file():
         tail = [ln for ln in lines if ln.strip()][-10:]
         raise RuntimeError("Blender could not clean this model:\n" + "\n".join(clean_lines[-8:] + tail))
+    shown = ("ATTENTION", "Texture", "Aucune texture", "  autres", "Décimation")
     ignored = ("Modèle debout", "Pose non évaluée")  # the Creator stands Z-up files up by itself
-    report += [ln for ln in clean_lines if ln.startswith(("ATTENTION", "Texture", "Aucune texture", "  autres", "Décimation"))
-               and not any(word in ln for word in ignored)]
+    report += [ln for ln in clean_lines if ln.startswith(shown) and not any(word in ln for word in ignored)]
     return out, report

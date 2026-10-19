@@ -12,6 +12,7 @@ instead of extracting, copying and re-encrypting everything. The name hash is co
 new entries come from a small archive it builds), as the game expects it.
 """
 import hashlib
+import json
 import struct
 import zlib
 from dataclasses import dataclass
@@ -47,8 +48,8 @@ class Entry:
         """The file's content (decrypted, inflated)."""
         nl, el, cs = self.header[9], self.header[10], self.header[7]
         start = 0x1e + nl + el
-        head = _ctr(self.raw[:start + min(ENCRYPTED_HEAD, cs)])
-        comp = head[start:] + self.raw[start + min(ENCRYPTED_HEAD, cs):start + cs]
+        plain_from = start + min(ENCRYPTED_HEAD, cs)
+        comp = _ctr(self.raw[:plain_from])[start:] + self.raw[plain_from:start + cs]
         return zlib.decompress(comp, -15) if self.method == 8 else comp
 
 
@@ -81,7 +82,7 @@ def write(entries: list[Entry], out: Path, md5: dict[str, bytes] | None = None) 
         offsets.append(pos)
         pos += len(e.raw)
     index = b"PK\xff\xff" + struct.pack("<I", len(entries)) + b"".join(
-        struct.pack("<II", h, o) for h, o in sorted(((e.hash, o) for e, o in zip(entries, offsets))))
+        struct.pack("<II", h, o) for h, o in sorted((e.hash, o) for e, o in zip(entries, offsets)))
     central = bytearray()
     for e, off in zip(entries, offsets):
         _, ver, flag, method, mtime, mdate, crc, cs, us, nl, _el = e.header
@@ -102,7 +103,6 @@ def write(entries: list[Entry], out: Path, md5: dict[str, bytes] | None = None) 
 
 def base_digests(base: Path, cache: Path | None) -> dict[str, bytes]:
     """md5 of every entry of a game archive, kept in `cache` (json) while the archive is unchanged."""
-    import json
     st = Path(base).stat()
     key = f"{st.st_size}_{st.st_mtime_ns}"
     if cache is not None and cache.is_file():

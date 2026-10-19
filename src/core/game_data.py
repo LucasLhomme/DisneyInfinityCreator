@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable
 
 from src.core import base_pack
-from src.core.material_bundle import TEMPLATE_PATH, MaterialBundle
+from src.core.material_bundle import TEMPLATE_PATH, MaterialBundle, _shader_layouts
 from src.core.paths import ASSETS_DIR, TOOLS_DIR
 
 TEMPLATE_SOURCE = "emp_luke"
@@ -64,14 +64,18 @@ class _Textures:
             archive = self.textures / f"{prefix}.zip"
             self.prefix = prefix
             try:
-                self.entries = {Path(e.name).stem.lower(): e for e in octane_zip.read(archive)} if archive.is_file() else {}
+                self.entries = ({Path(e.name).stem.lower(): e for e in octane_zip.read(archive)}
+                                if archive.is_file() else {})
             except (OSError, ValueError):
                 self.entries = {}
         entry = self.entries.get(texture_id)
         loose = self.textures / f"{texture_id}.tbody"
         try:
-            data = entry.data() if entry is not None else loose.read_bytes() if loose.is_file() else None
-            if data is None:
+            if entry is not None:
+                data = entry.data()
+            elif loose.is_file():
+                data = loose.read_bytes()
+            else:
                 return None
             img = Image.open(io.BytesIO(data))
             img.load()
@@ -112,7 +116,12 @@ def _packed_install(game_dir: Path):
 
 def _status(base):
     skeleton = base.skeleton
-    state = "unsupported" if not base.supported else "adapted" if skeleton.fallbacks else "standard"
+    if not base.supported:
+        state = "unsupported"
+    elif skeleton.fallbacks:
+        state = "adapted"
+    else:
+        state = "standard"
     return base_pack.BaseStatus(state, skeleton.summary(), len(base.meshes), round(base.fit_height, 3))
 
 
@@ -122,7 +131,6 @@ def write_template() -> None:
     if source is None:
         raise FileNotFoundError(f"{TEMPLATE_SOURCE} is missing from the base pack: the material template needs it")
     luke = MaterialBundle.from_bytes(source.read_bytes())
-    from src.core.material_bundle import _shader_layouts
     size = _shader_layouts()[luke.shaders[0]]["record_size"]
     template = MaterialBundle(textures=luke.textures[:2], shaders=luke.shaders[:1], uuids=luke.uuids[:1],
                               shader_ids=[0], hashes=luke.hashes[:1], data=luke.data[:size])

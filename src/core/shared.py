@@ -51,6 +51,11 @@ class CreatorMod:
         return {t[:2] for t in self.textures}
 
 
+def _source_files(mod: CreatorMod) -> set[Path]:
+    """Every file the mod contributes to the shared archives (textures and icons)."""
+    return set(mod.textures.values()) | {f for files in mod.ui.values() for f in files.values()}
+
+
 def _is_creator(mod_json: Path) -> dict | None:
     try:
         data = json.loads(mod_json.read_text(encoding="utf-8"))
@@ -76,10 +81,8 @@ def creator_mods(game_dir: Path) -> list[CreatorMod]:
             continue
         char = data.get("character") or {}
         mod = CreatorMod(folder.name.lstrip("_"), folder, not folder.name.startswith("_"),
-                         str(char.get("displayName") or data.get("name", folder.name)), str(char.get("name", "")))
-        for f in folder.rglob("*"):
-            if f.is_file():
-                mod.size += f.stat().st_size
+                         str(char.get("displayName") or data.get("name", folder.name)), str(char.get("name", "")),
+                         size=sum(f.stat().st_size for f in folder.rglob("*") if f.is_file()))
         tex = folder / "textures"
         if tex.is_dir():
             mod.textures = {f.stem.lower(): f for f in tex.glob("*.tbody")}
@@ -87,7 +90,8 @@ def creator_mods(game_dir: Path) -> list[CreatorMod]:
         for archive in UI_ARCHIVES:
             root = folder / "ui" / archive
             if root.is_dir():
-                files = {f"{archive}/{f.relative_to(root).as_posix()}".lower(): f for f in root.rglob("*") if f.is_file()}
+                files = {f"{archive}/{f.relative_to(root).as_posix()}".lower(): f
+                         for f in root.rglob("*") if f.is_file()}
                 if files:
                     mod.ui[archive] = files
         if not mod.actor:
@@ -225,9 +229,8 @@ def rebuild(game_dir: Path, log: Log = print, force: bool = False) -> RebuildRep
             continue
         log(f"Building {name}.zip ({len(files)} file(s) of Creator characters)...")
         entries = _build(vanilla, Path(name).name, files, out, work, log)
-        owners = sorted({m.slug for m in mods if m.enabled and any(p in files.values() for p in
-                                                                    list(m.textures.values()) + [f for d in m.ui.values()
-                                                                                                 for f in d.values()])})
+        sources = set(files.values())
+        owners = sorted({m.slug for m in mods if m.enabled and _source_files(m) & sources})
         built[name] = {"stamp": stamp, "entries": entries, "added": len(files), "mods": owners}
         report.built.append(name)
     for name in [n for n in built if n not in targets]:  # nothing uses it any more: the vanilla one is enough
@@ -238,9 +241,7 @@ def rebuild(game_dir: Path, log: Log = print, force: bool = False) -> RebuildRep
             path.unlink()
         report.removed.append(f"{name}.zip (used by {', '.join(entry.get('mods', [])) or 'no character'})")
     # The shared archives now carry everything: the per-character copies and the hand-made icon mod go.
-    for mod in mods:
-        if not mod.enabled:
-            continue
+    for mod in (m for m in mods if m.enabled):
         for archive in mod.own_archives:
             stem = archive.stem.lower()
             if f"textures/{stem}" not in built and stem in mod.prefixes:
@@ -278,8 +279,7 @@ def summary(report: RebuildReport) -> list[str]:
         lines.append(f"Shared archives rebuilt: {', '.join(report.built)}")
     if report.kept:
         lines.append(f"Already up to date: {', '.join(report.kept)}")
-    for r in report.removed:
-        lines.append(f"Removed: {r}")
+    lines += [f"Removed: {r}" for r in report.removed]
     if report.freed:
         lines.append(f"Space freed: {report.freed / 1e6:.1f} MB")
     return lines

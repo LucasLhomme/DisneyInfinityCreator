@@ -13,8 +13,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.core import shared  # noqa: E402
-from src.core.paths import CONFIG_PATH  # noqa: E402
 from src.core.mod_writer import BACKUP_DIR  # noqa: E402
+from src.core.paths import CONFIG_PATH  # noqa: E402
 
 
 def game_dir() -> Path:
@@ -29,6 +29,10 @@ def game_dir() -> Path:
 
 def mb(n: int) -> str:
     return f"{n / 1e6:.1f} Mo"
+
+
+def log(line: str) -> None:
+    print("  " + line)
 
 
 def show(game: Path) -> list[shared.CreatorMod]:
@@ -58,18 +62,14 @@ def show(game: Path) -> list[shared.CreatorMod]:
     return mods
 
 
-def pick(mods, prompt):
-    raw = input(prompt).strip()
-    out = []
-    for part in raw.replace(",", " ").split():
-        if part.isdigit() and 1 <= int(part) <= len(mods):
-            out.append(mods[int(part) - 1])
-    return out
+def pick(mods: list[shared.CreatorMod], prompt: str) -> list[shared.CreatorMod]:
+    parts = input(prompt).strip().replace(",", " ").split()
+    return [mods[int(p) - 1] for p in parts if p.isdigit() and 1 <= int(p) <= len(mods)]
 
 
 def rebuild(game: Path) -> bool:
     try:
-        shared.rebuild(game, lambda s: print("  " + s))
+        shared.rebuild(game, log)
         return True
     except Exception as exc:  # noqa: BLE001
         print(f"  ERREUR : {exc}")
@@ -80,16 +80,21 @@ def clean(game: Path) -> None:
     mods = shared.creator_mods(game)
     moved = sum(shared.migrate_prefix(m) for m in mods if m.enabled)
     if moved:
-        print(f"  {moved} texture(s) d'anciens personnages deplacee(s) dans l'archive partagee {shared.SHARED_PREFIX}.zip")
+        print(f"  {moved} texture(s) d'anciens personnages deplacee(s) dans l'archive partagee "
+              f"{shared.SHARED_PREFIX}.zip")
     rebuild(game)
-    if BACKUP_DIR.is_dir():
-        backups = sorted(p for p in BACKUP_DIR.iterdir() if p.is_dir())
-        size = sum(f.stat().st_size for b in backups for f in b.rglob("*") if f.is_file())
-        if backups and sys.stdin.isatty() and input(f"  Envoyer les {len(backups)} sauvegardes d'anciennes versions ({mb(size)}) "
-                             "a la corbeille ? (o/N) ").strip().lower() == "o":
-            for b in backups:
-                shared.move_to_recycle_bin(b)
-            print("  Sauvegardes envoyees a la corbeille.")
+    if not BACKUP_DIR.is_dir():
+        return
+    backups = sorted(p for p in BACKUP_DIR.iterdir() if p.is_dir())
+    size = sum(f.stat().st_size for b in backups for f in b.rglob("*") if f.is_file())
+    if not backups or not sys.stdin.isatty():
+        return
+    answer = input(f"  Envoyer les {len(backups)} sauvegardes d'anciennes versions ({mb(size)}) "
+                   "a la corbeille ? (o/N) ")
+    if answer.strip().lower() == "o":
+        for b in backups:
+            shared.move_to_recycle_bin(b)
+        print("  Sauvegardes envoyees a la corbeille.")
 
 
 def menu(game: Path) -> None:
@@ -98,7 +103,7 @@ def menu(game: Path) -> None:
         print("\n  1. Supprimer (corbeille)   2. Desactiver / reactiver   3. Nettoyer (fichiers residuels, "
               "anciennes archives)\n  4. Reconstruire les archives partagees   0. Quitter")
         choice = input("Choix : ").strip()
-        if choice == "0" or choice == "":
+        if choice in ("0", ""):
             return
         if shared.game_running() and choice in "1234":
             print("  Ferme le jeu d'abord (il garde ses archives ouvertes).")
@@ -112,20 +117,20 @@ def menu(game: Path) -> None:
                 rebuild(game)
         elif choice == "2":
             for m in pick(mods, "Numero(s) a desactiver / reactiver : "):
-                target = m.path.with_name(m.slug if not m.enabled else "_" + m.slug)
+                target = m.path.with_name("_" + m.slug if m.enabled else m.slug)
                 if target.exists():
                     print(f"  {target.name} existe deja : ignore.")
                     continue
                 m.path.rename(target)
-                print(f"  {m.name} {'reactive' if not m.enabled else 'desactive'}.")
+                print(f"  {m.name} {'desactive' if m.enabled else 'reactive'}.")
             rebuild(game)
         elif choice == "3":
             clean(game)
         elif choice == "4":
-            shared.rebuild(game, lambda s: print("  " + s), force=True)
+            shared.rebuild(game, log, force=True)
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--rebuild", action="store_true")
