@@ -20,7 +20,7 @@ def find_blender() -> str:
 
 DEFAULTS = {
     "blender_path": find_blender(),
-    "game_path": r"D:\SteamLibrary\steamapps\common\Disney Infinity 3.0 Gold Edition",
+    "game_path": "",
     "mod_name": "mario",
 }
 

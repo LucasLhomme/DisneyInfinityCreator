@@ -234,7 +234,7 @@ class MainWindow(ctk.CTk):
     def _start(self):
         if not has_pack():
             self.base_info.configure(text="Creator's base pack is missing (src/assets/bases): "
-                                          "run tools/build_base_pack.py.", text_color=RED)
+                                          "restart Creator to extract it from the game.", text_color=RED)
             return
         self.on_pick_base(self.settings.get("base_actor", DEFAULT_BASE))
 
@@ -1282,7 +1282,6 @@ class MainWindow(ctk.CTk):
             self._set_busy(False)
             if error:
                 self.base_info.configure(text=f"Could not load {entry.display_name}: {error[0]}", text_color=RED)
-                print(error[1])
                 return
             base, parts = result
             self.base = base
@@ -2269,7 +2268,6 @@ class MainWindow(ctk.CTk):
 
     def _failed(self, error):
         self.log(f"FAILED: {error[0]}")
-        print(error[1])
 
     def _ready_to_rig(self) -> bool:
         if not self.model:

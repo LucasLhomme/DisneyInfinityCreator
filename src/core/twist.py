@@ -14,7 +14,7 @@ from src.core.skeleton import SIDES
 T = np.array([-0.15, -0.05, 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95])
 """Position along the limb (0 = first joint, 1 = next joint) of each row of the profiles below."""
 PROFILES = {
-    # group: ((main bone, helpers...), (share of each bone at each T)), measured with tools/twist_profiles.py
+    # group: ((main bone, helpers...), (share of each bone at each T)), measured on the official figures
     "upper_arm": (['Shoulder', 'Shoulder_Spin', 'Shoulder_OL'],
        (
         (0.05, 0.69, 0.24),

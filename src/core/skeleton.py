@@ -289,7 +289,7 @@ def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter,
     return calibrate(props), FitReport(detected, estimated)
 
 
-# Where the game puts its joints, learned from its own figures (tools/fit_calibration.py): 70 humanoid figures were
+# Where the game puts its joints, learned from its own figures: 70 humanoid figures were
 # raised into a T-pose with their own skeleton and measured like any model; each joint is then predicted from the
 # raw measurements by a small linear model (fractions of the height; `wrist` is the 0-1 position along the arm).
 # Leave-one-out error, raw -> calibrated (% of the height): shoulder width 4.3 -> 1.7 (the raw edge of the torso is
