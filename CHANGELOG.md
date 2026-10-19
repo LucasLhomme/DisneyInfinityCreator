@@ -5,6 +5,13 @@ Commits : `type(zone): résumé` (types `feat`, `fix`, `perf`, `refactor`, `docs
 dit pourquoi et comment c'est vérifié. Publier une version : mettre à jour `VERSION` et ce journal ; GitHub
 Actions crée alors l'étiquette et la release.
 
+## [1.1.1] - 2026-10-19
+### Corrigé
+- `Launch_Creator.bat` : une installation des dépendances interrompue (fenêtre fermée, coupure réseau) n'était
+  jamais reprise, car seul le dossier `.venv` était vérifié ; Creator plantait ensuite sur
+  `No module named 'customtkinter'`. Le lanceur vérifie maintenant que toutes les dépendances s'importent et
+  relance l'installation sinon (testé sur Python 3.15 en retirant `customtkinter`).
+
 ## [1.1.0] - 2026-10-17
 ### Ajouté
 - Extraction des données du jeu au premier lancement : une fenêtre trouve le dossier de Disney Infinity 3.0 (ou le
