@@ -65,11 +65,7 @@ remplacé.
 2. Double-clique sur **`Launch_Creator.bat`**. Au premier lancement, il installe les dépendances Python dans un
    environnement `.venv` (`customtkinter`, `moderngl`, `numpy`, `Pillow`, `trimesh`, `scipy`, `cryptography`), puis
    ouvre Creator. Les fois suivantes, il démarre directement.
-3. **Première ouverture : extraction des données du jeu.** Creator trouve ton dossier Disney Infinity 3.0 (sinon,
-   choisis-le) et en extrait les 99 figures de base (2 à 3 minutes, une seule fois). Aucun fichier du jeu n'est
-   fourni avec Creator : tout vient de ta propre copie.
-
-Si l'appli s'arrête, la fenêtre reste ouverte et renvoie vers `build\creator.log`. Après une mise à jour de Creator,
+3. Si l'appli s'arrête, la fenêtre reste ouverte et renvoie vers `build\creator.log`. Après une mise à jour de Creator,
 `run.ps1` (PowerShell) réinstalle les dépendances puis lance l'appli.
 
 ## Créer un personnage

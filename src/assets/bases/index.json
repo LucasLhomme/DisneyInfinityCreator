@@ -1,0 +1,1091 @@
+{
+ "AL_Aladdin": {
+  "animtree": "characters/AL_Aladdin/AL_Aladdin.animtreeoverrides",
+  "model": "al_aladdin",
+  "model_dir": "al_aladdin",
+  "status": {
+   "height": 1.813,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AL_Jasmine": {
+  "animtree": "characters/AL_Jasmine/AL_Jasmine.animtreeoverrides",
+  "model": "al_jasmine",
+  "model_dir": "al_jasmine",
+  "status": {
+   "height": 1.474,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AVG_BlackWidow": {
+  "animtree": "characters/AVG_BlackWidow/AVG_BlackWidow.animtreeoverrides",
+  "model": "avg_blackwidow",
+  "model_dir": "avg_blackwidow",
+  "status": {
+   "height": 1.474,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AVG_CaptainAmerica": {
+  "animtree": "characters/AVG_CaptainAmerica/AVG_CaptainAmerica.animtreeoverrides",
+  "model": "avg_captainamerica",
+  "model_dir": "avg_captainamerica",
+  "status": {
+   "height": 2.137,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AVG_Falcon": {
+  "animtree": "characters/AVG_Falcon/AVG_Falcon.animtreeoverrides",
+  "model": "avg_falcon",
+  "model_dir": "avg_falcon",
+  "status": {
+   "height": 2.136,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AVG_Hawkeye": {
+  "animtree": "characters/AVG_Hawkeye/AVG_Hawkeye.animtreeoverrides",
+  "model": "avg_hawkeye",
+  "model_dir": "avg_hawkeye",
+  "status": {
+   "height": 2.069,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AVG_Hulk": {
+  "animtree": "characters/AVG_Hulk/AVG_Hulk.animtreeoverrides",
+  "model": "avg_hulk",
+  "model_dir": "avg_hulk",
+  "status": {
+   "height": 2.401,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Ball_Scale_Left, Ball_Right -> Ball_Scale_Right"
+  }
+ },
+ "AVG_HulkBuster": {
+  "animtree": "characters/AVG_HulkBuster/AVG_HulkBuster.animtreeoverrides",
+  "model": "avg_hulkbuster",
+  "model_dir": "avg_hulkbuster",
+  "status": {
+   "height": 1.856,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "AVG_IronMan": {
+  "animtree": "characters/AVG_IronMan/AVG_IronMan.animtreeoverrides",
+  "model": "avg_ironman",
+  "model_dir": "avg_ironman",
+  "status": {
+   "height": 2.123,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AVG_Loki": {
+  "animtree": "characters/AVG_Loki/AVG_Loki.animtreeoverrides",
+  "model": "avg_loki",
+  "model_dir": "avg_loki",
+  "status": {
+   "height": 2.116,
+   "meshes": 3,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "AVG_Thor": {
+  "animtree": "characters/AVG_Thor/AVG_Thor.animtreeoverrides",
+  "model": "avg_thor",
+  "model_dir": "avg_thor",
+  "status": {
+   "height": 2.177,
+   "meshes": 3,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AVG_Ultron": {
+  "animtree": "characters/AVG_Ultron/AVG_Ultron.animtreeoverrides",
+  "model": "avg_ultron",
+  "model_dir": "avg_ultron",
+  "status": {
+   "height": 2.205,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AV_Buzz": {
+  "animtree": "characters/TS_Buzz/TS_Buzz.animtreeoverrides",
+  "model": "ts_buzz",
+  "model_dir": "ts_buzz",
+  "status": {
+   "height": 1.838,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "AV_BuzzInfinite": {
+  "animtree": "characters/TS_Buzz/TS_Buzz.animtreeoverrides",
+  "model": "ts_buzz",
+  "model_dir": "ts_buzz",
+  "status": {
+   "height": 1.838,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "AV_Buzz_Glow": {
+  "animtree": "characters/TS_Buzz/TS_Buzz.animtreeoverrides",
+  "model": "ts_buzz",
+  "model_dir": "ts_buzz",
+  "status": {
+   "height": 1.838,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "AV_Dash": {
+  "animtree": "characters/Inc_Dash/Inc_Dash.animtreeoverrides",
+  "model": "inc_dash",
+  "model_dir": "inc_dash",
+  "status": {
+   "height": 1.896,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "AV_ElastiGirl": {
+  "animtree": "characters/Inc_Helen/Inc_Helen.animtreeoverrides",
+  "model": "inc_helen",
+  "model_dir": "inc_helen",
+  "status": {
+   "height": 1.872,
+   "meshes": 3,
+   "state": "unsupported",
+   "summary": "not a humanoid skeleton: missing Shoulder_Right, Hand_Right, Knee_Right"
+  }
+ },
+ "AV_Jessie": {
+  "animtree": "characters/TS_Jessie/TS_Jessie.animtreeoverrides",
+  "model": "ts_jessie",
+  "model_dir": "ts_jessie",
+  "status": {
+   "height": 1.88,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Knee_Left -> Knee_Break_Left, Knee_Right -> Knee_Break_Right, Ball_Right -> Ankle_Right (estimated)"
+  }
+ },
+ "AV_MrIncredible": {
+  "animtree": "characters/Inc_Bob/Inc_Bob.animtreeoverrides",
+  "model": "inc_bob",
+  "model_dir": "inc_bob",
+  "status": {
+   "height": 1.826,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AV_MrIncredibleInfinite": {
+  "animtree": "characters/Inc_Bob/Inc_Bob.animtreeoverrides",
+  "model": "inc_bob",
+  "model_dir": "inc_bob",
+  "status": {
+   "height": 1.826,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AV_Syndrome": {
+  "animtree": "characters/Inc_Syndrome/Inc_Syndrome.animtreeoverrides",
+  "model": "inc_syndrome",
+  "model_dir": "inc_syndrome",
+  "status": {
+   "height": 1.82,
+   "meshes": 3,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AV_Violet": {
+  "animtree": "characters/Inc_Violet/Inc_Violet.animtreeoverrides",
+  "model": "inc_violet",
+  "model_dir": "inc_violet",
+  "status": {
+   "height": 1.872,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "AV_Woody": {
+  "animtree": "characters/TS_Woody/TS_Woody.animtreeoverrides",
+  "model": "ts_woody",
+  "model_dir": "ts_woody",
+  "status": {
+   "height": 1.927,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Knee_Left -> Knee_Break_Left, Knee_Right -> Knee_Break_Right, Ball_Left -> Knee_Break_Left (estimated), Ball_Right -> Knee_Break_Right (estimated), Ankle_Left -> Knee_Break_Left (estimated), Ankle_Right -> Knee_Break_Right (estimated)"
+  }
+ },
+ "BHS_Baymax": {
+  "animtree": "characters/BHS_Baymax/BHS_Baymax.animtreeoverrides",
+  "model": "bhs_baymax",
+  "model_dir": "bhs_baymax",
+  "status": {
+   "height": 2.322,
+   "meshes": 4,
+   "state": "adapted",
+   "summary": "adapted skeleton: Middle1_Left -> Index1_Left, Middle1_Right -> Index1_Right"
+  }
+ },
+ "BHS_Hiro": {
+  "animtree": "characters/BHS_Hiro/BHS_Hiro.animtreeoverrides",
+  "model": "bhs_hiro",
+  "model_dir": "bhs_hiro",
+  "status": {
+   "height": 1.853,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Elbow_Right -> Elbow_OL_Right, Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "BRV_Merida": {
+  "animtree": "characters/BRV_Merida/BRV_Merida.animtreeoverrides",
+  "model": "brv_merida",
+  "model_dir": "brv_merida",
+  "status": {
+   "height": 1.545,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "DNO_Spot": {
+  "animtree": "characters/DNO_Spot/DNO_Spot.animtreeoverrides",
+  "model": "dno_spot",
+  "model_dir": "dno_spot",
+  "status": {
+   "height": 1.896,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Elbow_Right -> Elbow_OL_Right"
+  }
+ },
+ "EMP_BobaFett": {
+  "animtree": "characters/EMP_BobaFett/EMP_BobaFett.animtreeoverrides",
+  "model": "emp_bobafett",
+  "model_dir": "emp_bobafett",
+  "status": {
+   "height": 2.057,
+   "meshes": 3,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "EMP_Chewbacca": {
+  "animtree": "characters/EMP_Chewbacca/EMP_Chewbacca.animtreeoverrides",
+  "model": "emp_chewbacca",
+  "model_dir": "emp_chewbacca",
+  "status": {
+   "height": 2.105,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Ball_Scale_Left, Ankle_Left -> Ball_Scale_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "EMP_DarthVader": {
+  "animtree": "characters/EMP_DarthVader/EMP_DarthVader.animtreeoverrides",
+  "model": "emp_darthvader",
+  "model_dir": "emp_darthvader",
+  "status": {
+   "height": 2.206,
+   "meshes": 3,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "EMP_HanSolo": {
+  "animtree": "characters/EMP_HanSolo/EMP_HanSolo.animtreeoverrides",
+  "model": "emp_hansolo",
+  "model_dir": "emp_hansolo",
+  "status": {
+   "height": 2.097,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "EMP_Leia": {
+  "animtree": "characters/EMP_Leia/EMP_Leia.animtreeoverrides",
+  "model": "emp_leia",
+  "model_dir": "emp_leia",
+  "status": {
+   "height": 1.506,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Thigh_Left -> Hips (estimated), Thigh_Right -> Hips (estimated), Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "EMP_Luke": {
+  "animtree": "characters/EMP_Luke/EMP_Luke.animtreeoverrides",
+  "model": "emp_luke",
+  "model_dir": "emp_luke",
+  "status": {
+   "height": 2.126,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "FRO_Anna": {
+  "animtree": "characters/FRO_Anna/FRO_Anna.animtreeoverrides",
+  "model": "fro_anna",
+  "model_dir": "fro_anna",
+  "status": {
+   "height": 1.545,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Thigh_Right -> Hips (estimated), Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "FRO_Elsa": {
+  "animtree": "characters/FRO_Elsa/FRO_Elsa.animtreeoverrides",
+  "model": "fro_elsa",
+  "model_dir": "fro_elsa",
+  "status": {
+   "height": 1.545,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Thigh_Left -> Hips (estimated), Thigh_Right -> Hips (estimated), Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "FRO_Olaf": {
+  "animtree": "characters/FRO_Olaf/FRO_Olaf.animtreeoverrides",
+  "model": "fro_olaf",
+  "model_dir": "fro_olaf",
+  "status": {
+   "height": 0.748,
+   "meshes": 5,
+   "state": "unsupported",
+   "summary": "not a humanoid skeleton: missing Head, Shoulder_Left, Shoulder_Right, Hand_Left, Hand_Right"
+  }
+ },
+ "GOG_Drax": {
+  "animtree": "characters/GOG_Drax/GOG_Drax.animtreeoverrides",
+  "model": "gog_drax",
+  "model_dir": "gog_drax",
+  "status": {
+   "height": 2.134,
+   "meshes": 2,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "GOG_Gamora": {
+  "animtree": "characters/GOG_Gamora/GOG_Gamora.animtreeoverrides",
+  "model": "gog_gamora",
+  "model_dir": "gog_gamora",
+  "status": {
+   "height": 1.474,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "GOG_Groot": {
+  "animtree": "characters/GOG_Groot/GOG_Groot.animtreeoverrides",
+  "model": "gog_groot",
+  "model_dir": "gog_groot",
+  "status": {
+   "height": 2.116,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Ball_Scale_Left, Ball_Right -> Ball_Scale_Right, Ankle_Left -> Ball_Scale_Left (estimated), Ankle_Right -> Ball_Scale_Right (estimated)"
+  }
+ },
+ "GOG_RocketRaccoon": {
+  "animtree": "characters/GOG_RocketRaccoon/GOG_RocketRaccoon.animtreeoverrides",
+  "model": "gog_rocketraccoon",
+  "model_dir": "gog_rocketraccoon",
+  "status": {
+   "height": 1.896,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "GOG_Ronan": {
+  "animtree": "characters/GOG_Ronan/GOG_Ronan.animtreeoverrides",
+  "model": "gog_ronan",
+  "model_dir": "gog_ronan",
+  "status": {
+   "height": 2.164,
+   "meshes": 2,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "GOG_StarLord": {
+  "animtree": "characters/GOG_StarLord/GOG_StarLord.animtreeoverrides",
+  "model": "gog_starlord",
+  "model_dir": "gog_starlord",
+  "status": {
+   "height": 2.107,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "GOG_Yondu": {
+  "animtree": "characters/GOG_Yondu/GOG_Yondu.animtreeoverrides",
+  "model": "gog_yondu",
+  "model_dir": "gog_yondu",
+  "status": {
+   "height": 2.071,
+   "meshes": 2,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "LAS_Stitch": {
+  "animtree": "characters/LAS_Stitch/LAS_Stitch.animtreeoverrides",
+  "model": "las_stitch",
+  "model_dir": "las_stitch",
+  "status": {
+   "height": 0.975,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "LR_LoneRanger": {
+  "animtree": "characters/LR_LoneRanger/LR_LoneRanger.animtreeoverrides",
+  "model": "lr_loneranger",
+  "model_dir": "lr_loneranger",
+  "status": {
+   "height": 1.813,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "LR_LoneRangerInfinite": {
+  "animtree": "characters/LR_LoneRanger/LR_LoneRanger.animtreeoverrides",
+  "model": "lr_loneranger",
+  "model_dir": "lr_loneranger",
+  "status": {
+   "height": 1.813,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "LR_Tonto": {
+  "animtree": "characters/LR_Tonto/LR_Tonto.animtreeoverrides",
+  "model": "lr_tonto",
+  "model_dir": "lr_tonto",
+  "status": {
+   "height": 1.813,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "MAL_Maleficent": {
+  "animtree": "characters/MAL_Maleficent/MAL_Maleficent.animtreeoverrides",
+  "model": "mal_maleficent",
+  "model_dir": "mal_maleficent",
+  "status": {
+   "height": 1.474,
+   "meshes": 2,
+   "state": "unsupported",
+   "summary": "not a humanoid skeleton: missing Knee_Left"
+  }
+ },
+ "MU_Mike": {
+  "animtree": "characters/MU_Mike/MU_Mike.animtreeoverrides",
+  "model": "mu_mike",
+  "model_dir": "mu_mike",
+  "status": {
+   "height": 0.681,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Neck -> Head (estimated), Spine2 -> Hips (estimated), Spine3 -> Hips (estimated), Clavicle_Left -> Shoulder_Spin_Left (estimated), Clavicle_Right -> Shoulder_Spin_Right (estimated), Thigh_Left -> Thigh_OL_Left, Thigh_Right -> Thigh_OL_Right, Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "MU_Randall": {
+  "animtree": "characters/MU_Randall/MU_Randall.animtreeoverrides",
+  "model": "mu_randall",
+  "model_dir": "mu_randall",
+  "status": {
+   "height": 0.177,
+   "meshes": 1,
+   "state": "unsupported",
+   "summary": "not a humanoid skeleton: missing Knee_Left, Knee_Right"
+  }
+ },
+ "MU_Sully": {
+  "animtree": "characters/MU_Sullivan/MU_Sullivan.animtreeoverrides",
+  "model": "mu_sullivan",
+  "model_dir": "mu_sullivan",
+  "status": {
+   "height": 2.259,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Elbow_Right -> Elbow_OL_Right, Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "MU_SullyInfinite": {
+  "animtree": "characters/MU_Sullivan/MU_Sullivan.animtreeoverrides",
+  "model": "mu_sullivan",
+  "model_dir": "mu_sullivan",
+  "status": {
+   "height": 2.259,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Elbow_Right -> Elbow_OL_Right, Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "NBC_JackSkellington": {
+  "animtree": "characters/NBC_JackSkellington/NBC_JackSkellington.animtreeoverrides",
+  "model": "nbc_jackskellington",
+  "model_dir": "nbc_jackskellington",
+  "status": {
+   "height": 1.855,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "OUT_Anger": {
+  "animtree": "characters/OUT_Anger/OUT_Anger.animtreeoverrides",
+  "model": "out_anger",
+  "model_dir": "out_anger",
+  "status": {
+   "height": 0.717,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Spine3 -> Spine2 (estimated)"
+  }
+ },
+ "OUT_Disgust": {
+  "animtree": "characters/OUT_Disgust/OUT_Disgust.animtreeoverrides",
+  "model": "out_disgust",
+  "model_dir": "out_disgust",
+  "status": {
+   "height": 1.497,
+   "meshes": 2,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "OUT_Fear": {
+  "animtree": "characters/OUT_Fear/OUT_Fear.animtreeoverrides",
+  "model": "out_fear",
+  "model_dir": "out_fear",
+  "status": {
+   "height": 0.988,
+   "meshes": 5,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "OUT_Joy": {
+  "animtree": "characters/OUT_Joy/OUT_Joy.animtreeoverrides",
+  "model": "out_joy",
+  "model_dir": "out_joy",
+  "status": {
+   "height": 1.515,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "OUT_Sadness": {
+  "animtree": "characters/OUT_Sadness/OUT_Sadness.animtreeoverrides",
+  "model": "out_sadness",
+  "model_dir": "out_sadness",
+  "status": {
+   "height": 1.167,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "PIR_Barbossa": {
+  "animtree": "characters/PIR_Barbossa/PIR_Barbossa.animtreeoverrides",
+  "model": "pir_barbossa",
+  "model_dir": "pir_barbossa",
+  "status": {
+   "height": 1.813,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "PIR_DavyJones": {
+  "animtree": "characters/PIR_DavyJones/PIR_DavyJones.animtreeoverrides",
+  "model": "pir_davyjones",
+  "model_dir": "pir_davyjones",
+  "status": {
+   "height": 1.869,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Middle1_Left -> Hand_Left (estimated), Thigh_Left -> Thigh_OL_Left, Thigh_Right -> Thigh_OL_Right, Ball_Left -> Toes_Left (estimated), Ball_Right -> Knee_Right (estimated), Ankle_Right -> Knee_Right (estimated)"
+  }
+ },
+ "PIR_JackSparrow": {
+  "animtree": "characters/PIR_JackSparrow/PIR_JackSparrow.animtreeoverrides",
+  "model": "pir_jacksparrow",
+  "model_dir": "pir_jacksparrow",
+  "status": {
+   "height": 1.813,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "PIR_JackSparrowInfinite": {
+  "animtree": "characters/PIR_JackSparrow/PIR_JackSparrow.animtreeoverrides",
+  "model": "pir_jacksparrow_cursed",
+  "model_dir": "pir_jacksparrow_cursed",
+  "status": {
+   "height": 1.813,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "PNF_Perry": {
+  "animtree": "characters/PNF_Perry/PNF_Perry.animtreeoverrides",
+  "model": "pnf_perry",
+  "model_dir": "pnf_perry",
+  "status": {
+   "height": 2.033,
+   "meshes": 3,
+   "state": "adapted",
+   "summary": "adapted skeleton: Elbow_Right -> Elbow_OL_Right"
+  }
+ },
+ "PNF_PerryInfinite": {
+  "animtree": "characters/PNF_Perry/PNF_Perry.animtreeoverrides",
+  "model": "pnf_perry",
+  "model_dir": "pnf_perry",
+  "status": {
+   "height": 2.033,
+   "meshes": 3,
+   "state": "adapted",
+   "summary": "adapted skeleton: Elbow_Right -> Elbow_OL_Right"
+  }
+ },
+ "PNF_Phineas": {
+  "animtree": "characters/PNF_Phineas/PNF_Phineas.animtreeoverrides",
+  "model": "pnf_phineas",
+  "model_dir": "pnf_phineas",
+  "status": {
+   "height": 1.896,
+   "meshes": 3,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "PSX_Emmitt": {
+  "animtree": "characters/PSX_Emmitt/PSX_Emmitt.animtreeoverrides",
+  "model": "psx_emmitt",
+  "model_dir": "psx_emmitt",
+  "status": {
+   "height": 2.072,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "PSX_Grimm": {
+  "animtree": "characters/PSX_Grimm/PSX_Grimm.animtreeoverrides",
+  "model": "psx_grimm",
+  "model_dir": "psx_grimm",
+  "status": {
+   "height": 2.096,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "PSX_James": {
+  "animtree": "characters/PSX_James/PSX_James.animtreeoverrides",
+  "model": "psx_james",
+  "model_dir": "psx_james",
+  "status": {
+   "height": 2.123,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "PSX_Lola": {
+  "animtree": "characters/PSX_Lola/PSX_Lola.animtreeoverrides",
+  "model": "psx_lola",
+  "model_dir": "psx_lola",
+  "status": {
+   "height": 1.474,
+   "meshes": 3,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "REB_Ezra": {
+  "animtree": "characters/REB_Ezra/REB_Ezra.animtreeoverrides",
+  "model": "reb_ezra",
+  "model_dir": "reb_ezra",
+  "status": {
+   "height": 1.859,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "REB_Kanan": {
+  "animtree": "characters/REB_Kanan/REB_Kanan.animtreeoverrides",
+  "model": "reb_kanan",
+  "model_dir": "reb_kanan",
+  "status": {
+   "height": 2.092,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "REB_Sabine": {
+  "animtree": "characters/REB_Sabine/REB_Sabine.animtreeoverrides",
+  "model": "reb_sabine",
+  "model_dir": "reb_sabine",
+  "status": {
+   "height": 1.493,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "REB_Zeb": {
+  "animtree": "characters/REB_Zeb/REB_Zeb.animtreeoverrides",
+  "model": "reb_zeb",
+  "model_dir": "reb_zeb",
+  "status": {
+   "height": 2.144,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "SPD_GreenGoblin": {
+  "animtree": "characters/SPD_GreenGoblin/SPD_GreenGoblin.animtreeoverrides",
+  "model": "spd_greengoblin",
+  "model_dir": "spd_greengoblin",
+  "status": {
+   "height": 2.57,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "SPD_IronFist": {
+  "animtree": "characters/SPD_IronFist/SPD_IronFist.animtreeoverrides",
+  "model": "spd_ironfist",
+  "model_dir": "spd_ironfist",
+  "status": {
+   "height": 2.04,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "SPD_NickFury": {
+  "animtree": "characters/SPD_NickFury/SPD_NickFury.animtreeoverrides",
+  "model": "spd_nickfury",
+  "model_dir": "spd_nickfury",
+  "status": {
+   "height": 2.067,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "SPD_Nova": {
+  "animtree": "characters/SPD_Nova/SPD_Nova.animtreeoverrides",
+  "model": "spd_nova",
+  "model_dir": "spd_nova",
+  "status": {
+   "height": 2.084,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "SPD_Spiderman": {
+  "animtree": "characters/SPD_Spiderman/SPD_Spiderman.animtreeoverrides",
+  "model": "spd_spiderman",
+  "model_dir": "spd_spiderman",
+  "status": {
+   "height": 2.064,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "SPD_Spiderman_Black": {
+  "animtree": "characters/SPD_Spiderman/SPD_Spiderman.animtreeoverrides",
+  "model": "spd_spidermansymbiote",
+  "model_dir": "spd_spiderman",
+  "status": {
+   "height": 2.064,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "SPD_Venom": {
+  "animtree": "characters/SPD_Venom/SPD_Venom.animtreeoverrides",
+  "model": "spd_venom",
+  "model_dir": "spd_venom",
+  "status": {
+   "height": 2.345,
+   "meshes": 2,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TAN_Rapunzel": {
+  "animtree": "characters/TAN_Rapunzel/TAN_Rapunzel.animtreeoverrides",
+  "model": "tan_rapunzel",
+  "model_dir": "tan_rapunzel",
+  "status": {
+   "height": 1.534,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Thigh_Right -> Thigh_OL_Right"
+  }
+ },
+ "TBX_ClassicMickey": {
+  "animtree": "characters/TBX_ClassicMickey/TBX_ClassicMickey.animtreeoverrides",
+  "model": "tbx_classicmickey",
+  "model_dir": "tbx_classicmickey",
+  "status": {
+   "height": 1.68,
+   "meshes": 4,
+   "state": "adapted",
+   "summary": "adapted skeleton: Middle1_Left -> Hand_Left (estimated), Middle1_Right -> Hand_Right (estimated)"
+  }
+ },
+ "TBX_JudyHopps": {
+  "animtree": "characters/TBX_JudyHopps/TBX_JudyHopps.animtreeoverrides",
+  "model": "tbx_judyhopps",
+  "model_dir": "tbx_judyhopps",
+  "status": {
+   "height": 1.853,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Elbow_Right -> Elbow_OL_Right, Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "TBX_Minnie": {
+  "animtree": "characters/TBX_Minnie/TBX_Minnie.animtreeoverrides",
+  "model": "tbx_minnie",
+  "model_dir": "tbx_minnie",
+  "status": {
+   "height": 1.68,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TBX_Mulan": {
+  "animtree": "characters/TBX_Mulan/TBX_Mulan.animtreeoverrides",
+  "model": "tbx_mulan",
+  "model_dir": "tbx_mulan",
+  "status": {
+   "height": 1.546,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Thigh_Left -> Thigh_OL_Left, Thigh_Right -> Thigh_OL_Right"
+  }
+ },
+ "TBX_NickWilde": {
+  "animtree": "characters/TBX_NickWilde/TBX_NickWilde.animtreeoverrides",
+  "model": "tbx_nickwilde",
+  "model_dir": "tbx_nickwilde",
+  "status": {
+   "height": 0.946,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TB_DonaldDuck": {
+  "animtree": "characters/TB_DonaldDuck/TB_DonaldDuck.animtreeoverrides",
+  "model": "tb_donaldduck",
+  "model_dir": "tb_donaldduck",
+  "status": {
+   "height": 0.975,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TB_MickeyMouse": {
+  "animtree": "characters/TB_MickeyMouse/TB_MickeyMouse.animtreeoverrides",
+  "model": "tb_mickeymouse",
+  "model_dir": "tb_mickeymouse",
+  "status": {
+   "height": 1.927,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Neck -> Spine3 (estimated), Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "TB_MickeyMouseInfinite": {
+  "animtree": "characters/TB_MickeyMouse/TB_MickeyMouse.animtreeoverrides",
+  "model": "tb_mickeymouse",
+  "model_dir": "tb_mickeymouse",
+  "status": {
+   "height": 1.927,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Neck -> Spine3 (estimated), Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "TB_Tinkerbell": {
+  "animtree": "characters/TB_Tinkerbell/TB_Tinkerbell.animtreeoverrides",
+  "model": "tb_tinkerbell",
+  "model_dir": "tb_tinkerbell",
+  "status": {
+   "height": 1.474,
+   "meshes": 2,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TCW_Ahsoka": {
+  "animtree": "characters/TCW_Ahsoka/TCW_Ahsoka.animtreeoverrides",
+  "model": "tcw_ahsoka",
+  "model_dir": "tcw_ahsoka",
+  "status": {
+   "height": 1.474,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TCW_Anakin": {
+  "animtree": "characters/TCW_Anakin/TCW_Anakin.animtreeoverrides",
+  "model": "tcw_anakin",
+  "model_dir": "tcw_anakin",
+  "status": {
+   "height": 2.057,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "TCW_DarthMaul": {
+  "animtree": "characters/TCW_DarthMaul/TCW_DarthMaul.animtreeoverrides",
+  "model": "tcw_darthmaul",
+  "model_dir": "tcw_darthmaul",
+  "status": {
+   "height": 2.206,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TCW_ObiWan": {
+  "animtree": "characters/TCW_ObiWan/TCW_ObiWan.animtreeoverrides",
+  "model": "tcw_obiwan",
+  "model_dir": "tcw_obiwan",
+  "status": {
+   "height": 2.057,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ankle_Left -> Ball_Left (estimated), Ankle_Right -> Ball_Right (estimated)"
+  }
+ },
+ "TCW_Yoda": {
+  "animtree": "characters/TCW_Yoda/TCW_Yoda.animtreeoverrides",
+  "model": "tcw_yoda",
+  "model_dir": "tcw_yoda",
+  "status": {
+   "height": 2.434,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "TRN_Quorra": {
+  "animtree": "characters/TRN_Quorra/TRN_Quorra.animtreeoverrides",
+  "model": "trn_quorra",
+  "model_dir": "trn_quorra",
+  "status": {
+   "height": 1.474,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "TRN_Sam": {
+  "animtree": "characters/TRN_Sam/TRN_Sam.animtreeoverrides",
+  "model": "trn_sam",
+  "model_dir": "trn_sam",
+  "status": {
+   "height": 2.107,
+   "meshes": 1,
+   "state": "standard",
+   "summary": "standard skeleton: every joint matches"
+  }
+ },
+ "WR_Ralph": {
+  "animtree": null,
+  "model": "wr_ralph",
+  "model_dir": "wr_ralph",
+  "status": {
+   "height": 1.668,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated), Ball_Right -> Toes_Right (estimated)"
+  }
+ },
+ "WR_Vanellope": {
+  "animtree": "characters/WR_Vanellope/WR_Vanellope.animtreeoverrides",
+  "model": "wr_vanellope",
+  "model_dir": "wr_vanellope",
+  "status": {
+   "height": 2.189,
+   "meshes": 1,
+   "state": "adapted",
+   "summary": "adapted skeleton: Ball_Left -> Toes_Left (estimated)"
+  }
+ }
+}

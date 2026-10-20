@@ -11,6 +11,3 @@ backups/
 # Personal settings (game and Blender paths)
 src/config/settings.json
 
-# Game files, extracted from the player's own copy on first launch
-src/assets/bases/
-src/assets/templates/
