@@ -116,6 +116,25 @@ class TestAbilities(unittest.TestCase):
         self.assertEqual(restored.custom_animations["attack_1"].name, "SuperSlash")
         self.assertEqual(restored.custom_animations["attack_1"].duration, 1.25)
 
+    def test_from_dict_handles_invalid_animations(self):
+        # Non-dict custom_animations value and non-dict entries
+        data = {
+            "custom_animations": {
+                "invalid_str": "not_a_dict",
+                "missing_fields": {"slot": "walk"},  # missing name
+                "valid": {"slot": "run", "name": "RunAnim", "duration": "1.5"},
+            }
+        }
+        res = CharacterAbilities.from_dict(data)
+        self.assertEqual(len(res.custom_animations), 1)
+        self.assertIn("valid", res.custom_animations)
+        self.assertEqual(res.custom_animations["valid"].name, "RunAnim")
+
+    def test_get_effective_animtree_source_fallback(self):
+        base = DummyBase()
+        abils = CharacterAbilities(combat_source_actor="NON_EXISTENT_ACTOR")
+        self.assertEqual(abils.get_effective_animtree_source(base), base)
+
     def test_write_text_files_with_abilities(self):
         base = DummyBase()
         ident = Identity(slug="super_mario", display_name="Super Mario", actor="MAR_Mari")

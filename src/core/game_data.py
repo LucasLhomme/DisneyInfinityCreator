@@ -5,18 +5,27 @@ template (src/assets/templates/skinned_body.mtb) are the game's own files: they 
 player builds them from their copy of the game. What ships is only metadata Creator worked out (roster.json: names
 and ids of the playable figures; shader_layouts.json: record sizes and texture slots per shader).
 """
+import io
 import time
+from functools import lru_cache
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
-from src.core import base_pack
+from PIL import Image
+
+from src.core import base_pack, octane_zip
+from src.core.game_files import CACHE_DIR, GameFileError, GameInstall
 from src.core.material_bundle import TEMPLATE_PATH, MaterialBundle, _shader_layouts
 from src.core.paths import ASSETS_DIR, TOOLS_DIR
 
 TEMPLATE_SOURCE = "emp_luke"
 """The material template is the body material of Luke Skywalker (standard skinned shader, diffuse + normal map)."""
-SHIPPED = (ASSETS_DIR / "roster.json", ASSETS_DIR / "shader_layouts.json", TOOLS_DIR / "quickbms.exe",
-           TOOLS_DIR / "disney_infinity_new.bms")
+SHIPPED = (
+    ASSETS_DIR / "roster.json",
+    ASSETS_DIR / "shader_layouts.json",
+    TOOLS_DIR / "quickbms.exe",
+    TOOLS_DIR / "disney_infinity_new.bms",
+)
 DEFAULT_GAME_DIRS = [
     r"C:\Program Files (x86)\Steam\steamapps\common\Disney Infinity 3.0 Gold Edition",
     r"C:\Program Files\Steam\steamapps\common\Disney Infinity 3.0 Gold Edition",
@@ -45,76 +54,98 @@ def find_game_dir(hint: str = "") -> str:
     return ""
 
 
-class _Textures:
-    """Textures read straight from the game's encrypted archives, one archive kept open at a time."""
+@lru_cache(maxsize=32)
+def _read_texture_archive(archive_path: Path) -> dict[str, octane_zip.Entry]:
+    """Cached index of entries in an encrypted texture zip archive."""
+    try:
+        if archive_path.is_file():
+            return {Path(e.name).stem.lower(): e for e in octane_zip.read(archive_path)}
+    except (OSError, ValueError):
+        pass
+    return {}
 
-    def __init__(self, game_dir: Path):
-        self.textures = Path(game_dir) / "assets" / "textures"
-        self.prefix, self.entries = None, {}
 
-    def __call__(self, texture_id: str):
-        import io
-
-        from PIL import Image
-
-        from src.core import octane_zip
-        texture_id = texture_id.lower()
-        prefix = texture_id[:2]
-        if prefix != self.prefix:
-            archive = self.textures / f"{prefix}.zip"
-            self.prefix = prefix
-            try:
-                self.entries = ({Path(e.name).stem.lower(): e for e in octane_zip.read(archive)}
-                                if archive.is_file() else {})
-            except (OSError, ValueError):
-                self.entries = {}
-        entry = self.entries.get(texture_id)
-        loose = self.textures / f"{texture_id}.tbody"
-        try:
-            if entry is not None:
-                data = entry.data()
-            elif loose.is_file():
-                data = loose.read_bytes()
-            else:
-                return None
-            with Image.open(io.BytesIO(data)) as img:
-                img.load()
-                return img.copy()
-        except (OSError, ValueError):
+def load_game_texture(game_dir: Path, texture_id: str) -> Image.Image | None:
+    """Read a texture from the game's encrypted archives or loose files."""
+    texture_id = texture_id.lower()
+    prefix = texture_id[:2]
+    textures_dir = game_dir / "assets" / "textures"
+    archive = textures_dir / f"{prefix}.zip"
+    entries = _read_texture_archive(archive)
+    entry = entries.get(texture_id)
+    loose = textures_dir / f"{texture_id}.tbody"
+    try:
+        if entry is not None:
+            data = entry.data()
+        elif loose.is_file():
+            data = loose.read_bytes()
+        else:
             return None
+        with Image.open(io.BytesIO(data)) as img:
+            img.load()
+            return img.copy()
+    except (OSError, ValueError):
+        return None
 
 
-def _packed_install(game_dir: Path):
+class TextureReader:
+    """Reads textures from game archives or loose files using cached archive lookups."""
+
+    def __init__(self, game_dir: Path) -> None:
+        self.game_dir = Path(game_dir)
+
+    def __call__(self, texture_id: str) -> Image.Image | None:
+        return load_game_texture(self.game_dir, texture_id)
+
+
+# Backward compatibility alias
+_Textures = TextureReader
+
+
+class PackedInstall(GameInstall):
     """GameInstall that also finds the actor scripts (.dnax) packed in assets/characters/characters.zip, as in the
     Steam release (the loose layout of an unpacked game works as before)."""
-    from src.core import octane_zip
-    from src.core.game_files import CACHE_DIR, GameFileError, GameInstall
 
-    class PackedInstall(GameInstall):
-        _packed = None
+    def __init__(self, game_dir: str | Path) -> None:
+        super().__init__(game_dir)
+        self._packed: dict[str, octane_zip.Entry] | None = None
 
-        def dnax(self, rel_path: str) -> Path:
+    def _get_packed_entries(self) -> dict[str, octane_zip.Entry]:
+        if self._packed is None:
+            archive = self.assets / "characters" / "characters.zip"
             try:
-                return super().dnax(rel_path)
-            except GameFileError:
-                pass
-            name = Path(rel_path).name.lower()
-            if PackedInstall._packed is None:
-                archive = self.assets / "characters" / "characters.zip"
-                PackedInstall._packed = ({Path(e.name).name.lower(): e for e in octane_zip.read(archive)}
-                                         if archive.is_file() else {})
-            entry = PackedInstall._packed.get(name)
-            if entry is None:
-                raise GameFileError(f"{rel_path} not found in {self.assets} nor in characters/characters.zip")
-            out = CACHE_DIR / "dnax" / name
-            if not out.is_file():
-                out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_bytes(entry.data())
-            return out
+                self._packed = (
+                    {Path(e.name).name.lower(): e for e in octane_zip.read(archive)}
+                    if archive.is_file()
+                    else {}
+                )
+            except (OSError, ValueError):
+                self._packed = {}
+        return self._packed
+
+    def dnax(self, rel_path: str) -> Path:
+        try:
+            return super().dnax(rel_path)
+        except GameFileError:
+            pass
+        name = Path(rel_path).name.lower()
+        packed = self._get_packed_entries()
+        entry = packed.get(name)
+        if entry is None:
+            raise GameFileError(f"{rel_path} not found in {self.assets} nor in characters/characters.zip")
+        out = CACHE_DIR / "dnax" / name
+        if not out.is_file():
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(entry.data())
+        return out
+
+
+def _packed_install(game_dir: Path) -> PackedInstall:
+    """Convenience factory returning a PackedInstall for the given directory."""
     return PackedInstall(game_dir)
 
 
-def _status(base):
+def _status(base: Any) -> base_pack.BaseStatus:
     skeleton = base.skeleton
     if not base.supported:
         state = "unsupported"
@@ -132,31 +163,38 @@ def write_template() -> None:
         raise FileNotFoundError(f"{TEMPLATE_SOURCE} is missing from the base pack: the material template needs it")
     luke = MaterialBundle.from_bytes(source.read_bytes())
     size = _shader_layouts()[luke.shaders[0]]["record_size"]
-    template = MaterialBundle(textures=luke.textures[:2], shaders=luke.shaders[:1], uuids=luke.uuids[:1],
-                              shader_ids=[0], hashes=luke.hashes[:1], data=luke.data[:size])
+    template = MaterialBundle(
+        textures=luke.textures[:2],
+        shaders=luke.shaders[:1],
+        uuids=luke.uuids[:1],
+        shader_ids=[0],
+        hashes=luke.hashes[:1],
+        data=luke.data[:size],
+    )
     TEMPLATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     TEMPLATE_PATH.write_bytes(template.to_bytes())
 
 
 def extract(game_dir: str | Path, log: Log = print, progress: Progress | None = None) -> int:
     """Build src/assets/bases and the material template from the game install. Returns the number of figures."""
-    from PIL import Image  # noqa: F401  (imported here so a missing Pillow fails before anything is written)
-
     from src.core.base_character import BaseCharacter, looks_like_normal_map
     from src.core.roster import load_roster
-    game = _packed_install(Path(game_dir))
+
+    path = Path(game_dir)
+    game = PackedInstall(path)
     game.check()
-    textures = _Textures(Path(game_dir))
+    textures = TextureReader(path)
     entries = sorted(load_roster(), key=lambda e: e.actor.lower())
-    rows, total, t0 = {}, 0, time.time()
+    rows: dict[str, dict[str, Any]] = {}
+    total, t0 = 0, time.time()
     for i, entry in enumerate(entries):
         if progress:
             progress(i, len(entries), entry.display_name)
         try:
             base = BaseCharacter.from_game(entry, game)
-            status = _status(base)
-            total += base_pack.add_to_pack(base, status, textures, looks_like_normal_map)
-            rows[entry.actor] = base_pack.index_row(base, status)
+            status_row = _status(base)
+            total += base_pack.add_to_pack(base, status_row, textures, looks_like_normal_map)
+            rows[entry.actor] = base_pack.index_row(base, status_row)
         except (OSError, ValueError, KeyError, RuntimeError) as exc:
             log(f"  {entry.display_name}: skipped ({exc})")
     if not rows:

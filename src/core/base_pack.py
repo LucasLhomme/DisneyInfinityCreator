@@ -11,6 +11,7 @@ import json
 import shutil
 from dataclasses import asdict, dataclass
 from functools import lru_cache
+from typing import Any, Callable
 
 from PIL import Image
 
@@ -40,7 +41,7 @@ class BaseStatus:
 
 
 @lru_cache(maxsize=1)
-def _index() -> dict:
+def _index() -> dict[str, Any]:
     try:
         return json.loads(INDEX_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -56,7 +57,7 @@ def status(actor: str) -> BaseStatus:
     return BaseStatus(**row["status"]) if row else BaseStatus("missing", "not in Creator's base pack")
 
 
-def load_base(cls, entry: RosterEntry):
+def load_base(cls: type[Any], entry: RosterEntry) -> Any:
     row = _index().get(entry.actor)
     if row is None:
         raise FileNotFoundError(f"{entry.display_name} is not in Creator's base pack ({PACK_DIR})")
@@ -76,7 +77,12 @@ def preview_texture(texture_id: str) -> Image.Image | None:
 
 
 # ------------------------------------------------------------------ building (game_data.extract)
-def add_to_pack(base, status_row: BaseStatus, load_texture, is_normal_map) -> int:
+def add_to_pack(
+    base: Any,
+    status_row: BaseStatus,
+    load_texture: Callable[[str], Image.Image | None],
+    is_normal_map: Callable[[Image.Image], bool],
+) -> int:
     """Copy one base (built from a game install) into the pack; returns the bytes written."""
     folder = PACK_DIR / base.actor_lower
     shutil.rmtree(folder, ignore_errors=True)
@@ -104,12 +110,16 @@ def add_to_pack(base, status_row: BaseStatus, load_texture, is_normal_map) -> in
     return written
 
 
-def write_index(rows: dict[str, dict]) -> None:
+def write_index(rows: dict[str, dict[str, Any]]) -> None:
     INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
     INDEX_PATH.write_text(json.dumps(rows, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     _index.cache_clear()
 
 
-def index_row(base, status_row: BaseStatus) -> dict:
-    return {"model_dir": base.model_dir, "model": base.model,
-            "animtree": base.animtree_file[0] if base.animtree_file else None, "status": asdict(status_row)}
+def index_row(base: Any, status_row: BaseStatus) -> dict[str, Any]:
+    return {
+        "model_dir": base.model_dir,
+        "model": base.model,
+        "animtree": base.animtree_file[0] if base.animtree_file else None,
+        "status": asdict(status_row),
+    }

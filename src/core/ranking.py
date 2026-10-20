@@ -8,9 +8,14 @@ Step 2 (the best few): build the real rig and measure how much the mesh deforms 
 The final score mixes the three things that make a base good: shape match, little stretching in the test poses, and
 little distortion when the T-pose is baked into the figure's pose (measured on the real rig). The arm angle of the
 figure was tried as a predictor of that distortion and does not predict it (proportion mismatch does)."""
+from __future__ import annotations
+
 import json
+import logging
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -20,6 +25,8 @@ from src.core.model import CharacterModel, auto_placement
 from src.core.quality import deformation_report
 from src.core.rig import build_rig
 from src.core.skeleton import build_anchors, measure
+
+_logger = logging.getLogger("creator")
 
 SHORTLIST = 12
 """Figures that get the full rig test."""
@@ -107,9 +114,12 @@ def final_score(match: int, deformation: int, bake: float) -> int:
     return int(round(WEIGHT_MATCH * match + WEIGHT_DEFORMATION * deformation + WEIGHT_BAKE * bake_score))
 
 
-def diverse_shortlist(scored: list[tuple[float, object, np.ndarray]], count: int = SHORTLIST):
+def diverse_shortlist(
+    scored: Sequence[tuple[float, Any, np.ndarray]], count: int = SHORTLIST
+) -> list[tuple[float, Any, np.ndarray]]:
     """Best figures first, skipping the ones that are the same body type as a figure already kept."""
-    kept, spare = [], []
+    kept: list[tuple[float, Any, np.ndarray]] = []
+    spare: list[tuple[float, Any, np.ndarray]] = []
     for item in scored:
         if all(shape_distance(item[2], other[2]) >= DIVERSITY for other in kept):
             kept.append(item)
@@ -124,17 +134,23 @@ def _cache_path(work: Path) -> Path:
     return Path(work) / f"base_features_v{CACHE_VERSION}.json"
 
 
-def _load_cache(work: Path) -> dict:
+def _load_cache(work: Path) -> dict[str, Any]:
     try:
         return json.loads(_cache_path(work).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def figure_features(entries, work: Path, progress=lambda text: None) -> dict[str, tuple[np.ndarray, float, str]]:
+def figure_features(
+    entries: Sequence[Any],
+    work: Path,
+    progress: Callable[[str], None] = lambda text: None,
+) -> dict[str, tuple[np.ndarray, float, str]]:
     """actor -> (profile, arm angle, model name) for every usable, distinct figure (cached on disk)."""
     cache = _load_cache(work)
-    out, seen, changed = {}, set(), False
+    out: dict[str, tuple[np.ndarray, float, str]] = {}
+    seen: set[str] = set()
+    changed = False
     for i, entry in enumerate(entries):
         row = cache.get(entry.actor)
         if row is None:
@@ -160,21 +176,34 @@ def figure_features(entries, work: Path, progress=lambda text: None) -> dict[str
         try:
             Path(work).mkdir(parents=True, exist_ok=True)
             _cache_path(work).write_text(json.dumps(cache), encoding="utf-8")
-        except OSError:
-            pass
+        except OSError as exc:
+            _logger.warning("Could not write cache file to %s: %s", _cache_path(work), exc)
     return out
 
 
-def rank_by_shape(model_profile: np.ndarray, figures: dict) -> list[tuple[float, str, np.ndarray, float]]:
+def rank_by_shape(
+    model_profile: np.ndarray,
+    figures: dict[str, tuple[np.ndarray, float, str]],
+) -> list[tuple[float, str, np.ndarray, float]]:
     """(distance, actor, profile, arm angle) for every figure, closest first."""
     rows = [(shape_distance(f, model_profile), actor, f, angle) for actor, (f, angle, _) in figures.items()]
     rows.sort(key=lambda r: r[0])
     return rows
 
 
-def rank_bases(source, entries, work: Path, progress=lambda text: None, shortlist: int = SHORTLIST,
-               blender: Path | None = None, weight_transfer: bool = False, skip=(), fingers: bool = False,
-               ignored=None, removed=None) -> list[Candidate]:
+def rank_bases(
+    source: Any,
+    entries: Sequence[Any],
+    work: Path,
+    progress: Callable[[str], None] = lambda text: None,
+    shortlist: int = SHORTLIST,
+    blender: Path | None = None,
+    weight_transfer: bool = False,
+    skip: Collection[str] = (),
+    fingers: bool = False,
+    ignored: Any | None = None,
+    removed: Any | None = None,
+) -> list[Candidate]:
     """Every distinct figure, ranked: the `shortlist` best not in `skip` get the full rig test (best first), the
     others follow in silhouette order, marked untested. `entries` are roster entries."""
     reference = CharacterModel(source, auto_placement(source, 2.0), ignored, removed)
