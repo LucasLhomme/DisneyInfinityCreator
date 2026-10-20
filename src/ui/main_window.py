@@ -1524,7 +1524,7 @@ class MainWindow(ctk.CTk):
         def work():
             try:
                 image = model.texture if full else model.texture_preview(512)
-            except Exception as exc:  # noqa: BLE001 - shown in the log, the slider keeps working
+            except (OSError, ValueError, RuntimeError) as exc:
                 errorlog.info(traceback.format_exc())
                 self._events.put(lambda exc=exc: self.log(f"Texture filter failed: {exc}"))
                 return
@@ -1840,7 +1840,7 @@ class MainWindow(ctk.CTk):
         several (variants, side parts, low-poly copies)."""
         try:
             folder, ranked = extract_archive(Path(path))
-        except Exception as e:  # noqa: BLE001 - a broken archive is reported, not raised
+        except (zipfile.BadZipFile, OSError, ValueError) as e:
             self.model_info.configure(text=f"Could not open {Path(path).name}: {e}", text_color=RED)
             return None
         if not ranked:

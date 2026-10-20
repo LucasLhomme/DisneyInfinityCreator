@@ -9,21 +9,27 @@ texture conservés, pieds au sol, centré, en mètres si le modèle semble être
 Usage : python bake_skinned_glb.py modele.glb [sortie.glb] [--scale 0.01]
 Python 3.8+ uniquement, aucune bibliothèque externe.
 """
+from __future__ import annotations
+
 import json
 import math
 import struct
 import sys
+from pathlib import Path
+from typing import Any
 
-CT = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}
-NC = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
-INT_MAX = {5120: 127, 5121: 255, 5122: 32767, 5123: 65535, 5125: 4294967295}
+CT: dict[int, tuple[str, int]] = {
+    5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)
+}
+NC: dict[str, int] = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
+INT_MAX: dict[int, int] = {5120: 127, 5121: 255, 5122: 32767, 5123: 65535, 5125: 4294967295}
 
 
-def read_glb(path):
-    data = open(path, "rb").read()
-    if data[:4] != b"glTF":
-        raise SystemExit("Ce n'est pas un fichier .glb.")
-    pos, js, binary = 12, None, b""
+def read_glb(path: str | Path) -> tuple[dict[str, Any], bytes]:
+    data = Path(path).read_bytes()
+    if not data.startswith(b"glTF"):
+        raise ValueError(f"{path}: signature glTF invalide.")
+    pos, js, binary = 12, {}, b""
     while pos < len(data):
         length, kind = struct.unpack_from("<I4s", data, pos)
         body = data[pos + 8:pos + 8 + length]
@@ -35,7 +41,7 @@ def read_glb(path):
     return js, binary
 
 
-def accessor(js, binary, index):
+def accessor(js: dict[str, Any], binary: bytes, index: int) -> list[tuple[float, ...]]:
     a = js["accessors"][index]
     view = js["bufferViews"][a["bufferView"]]
     fmt, size = CT[a["componentType"]]
@@ -43,18 +49,18 @@ def accessor(js, binary, index):
     offset = view.get("byteOffset", 0) + a.get("byteOffset", 0)
     stride = view.get("byteStride", size * n)
     scale = 1.0 / INT_MAX[a["componentType"]] if a.get("normalized") else None
-    rows = []
+    rows: list[tuple[float, ...]] = []
     for k in range(a["count"]):
         row = struct.unpack_from("<" + fmt * n, binary, offset + k * stride)
         rows.append(tuple(v * scale for v in row) if scale else row)
     return rows
 
 
-def mat_mul(a, b):
+def mat_mul(a: list[list[float]], b: list[list[float]]) -> list[list[float]]:
     return [[sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
 
 
-def local_matrix(node):
+def local_matrix(node: dict[str, Any]) -> list[list[float]]:
     if "matrix" in node:
         m = node["matrix"]
         return [[m[c * 4 + r] for c in range(4)] for r in range(4)]
@@ -67,24 +73,24 @@ def local_matrix(node):
     return [[r[0][0] * sx, r[0][1] * sy, r[0][2] * sz, tx],
             [r[1][0] * sx, r[1][1] * sy, r[1][2] * sz, ty],
             [r[2][0] * sx, r[2][1] * sy, r[2][2] * sz, tz],
-            [0, 0, 0, 1]]
+            [0.0, 0.0, 0.0, 1.0]]
 
 
-def apply(m, v, w=1.0):
+def apply(m: list[list[float]], v: tuple[float, ...], w: float = 1.0) -> tuple[float, float, float]:
     return (m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * w,
             m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * w,
             m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * w)
 
 
-def texture_key(js, mat):
+def texture_key(js: dict[str, Any], mat: int | None) -> tuple[str, ...]:
     """Matériaux qui partagent la même texture de couleur -> même groupe."""
     if mat is None:
         return ("none",)
     tex = js["materials"][mat].get("pbrMetallicRoughness", {}).get("baseColorTexture")
-    return ("tex", tex["index"]) if tex else ("mat", mat)
+    return ("tex", str(tex["index"])) if tex else ("mat", str(mat))
 
 
-def main():
+def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if not args:
         raise SystemExit(__doc__)
@@ -97,24 +103,24 @@ def main():
     js, binary = read_glb(src)
     nodes = js["nodes"]
     parent = {c: i for i, n in enumerate(nodes) for c in n.get("children", [])}
-    cache = {}
+    cache: dict[int, list[list[float]]] = {}
 
-    def world(i):
+    def world(i: int) -> list[list[float]]:
         if i not in cache:
             m = local_matrix(nodes[i])
             cache[i] = mat_mul(world(parent[i]), m) if i in parent else m
         return cache[i]
 
-    skin_mats = {}
+    skin_mats: dict[int, list[list[list[float]]]] = {}
     for si, skin in enumerate(js.get("skins", [])):
         ibm = accessor(js, binary, skin["inverseBindMatrices"])
-        mats = []
+        mats: list[list[list[float]]] = []
         for j, flat in zip(skin["joints"], ibm):
             inv = [[flat[c * 4 + r] for c in range(4)] for r in range(4)]
             mats.append(mat_mul(world(j), inv))
         skin_mats[si] = mats
 
-    prims = []  # (positions, normals, uvs, indices, material)
+    prims: list[tuple[list[tuple[float, float, float]], list[tuple[float, float, float]] | None, list[tuple[float, ...]] | None, list[int], int | None]] = []
     for ni, node in enumerate(nodes):
         if "mesh" not in node:
             continue
@@ -123,7 +129,7 @@ def main():
             pos = accessor(js, binary, at["POSITION"])
             nor = accessor(js, binary, at["NORMAL"]) if "NORMAL" in at else None
             uv = accessor(js, binary, at["TEXCOORD_0"]) if "TEXCOORD_0" in at else None
-            idx = ([i[0] for i in accessor(js, binary, p["indices"])] if "indices" in p
+            idx = ([int(i[0]) for i in accessor(js, binary, p["indices"])] if "indices" in p
                    else list(range(len(pos))))
             if "skin" in node and "JOINTS_0" in at:
                 mats = skin_mats[node["skin"]]
@@ -158,10 +164,10 @@ def main():
         raise SystemExit("Aucun maillage trouvé.")
 
     # Fusionne les parties qui partagent la même texture : un seul matériau, texture pleine résolution
-    groups = {}
+    groups: dict[tuple[str, ...], list[Any]] = {}
     for pr in prims:
         groups.setdefault(texture_key(js, pr[4]), []).append(pr)
-    merged = []
+    merged: list[Any] = []
     for group in groups.values():
         pos, nor, uv, idx = [], [], [], []
         has_n, has_uv = all(g[1] for g in group), all(g[2] for g in group)
@@ -187,26 +193,27 @@ def main():
     cx, cz = (lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2
 
     buf = bytearray()
-    views, accs = [], []
+    views: list[dict[str, Any]] = []
+    accs: list[dict[str, Any]] = []
 
-    def add_view(data, target=None):
+    def add_view(data: bytes, target: int | None = None) -> int:
         while len(buf) % 4:
             buf.append(0)
-        view = {"buffer": 0, "byteOffset": len(buf), "byteLength": len(data)}
+        view: dict[str, Any] = {"buffer": 0, "byteOffset": len(buf), "byteLength": len(data)}
         if target:
             view["target"] = target
         buf.extend(data)
         views.append(view)
         return len(views) - 1
 
-    def add_acc(view, comp, count, kind, mn=None, mx=None):
-        a = {"bufferView": view, "componentType": comp, "count": count, "type": kind}
+    def add_acc(view: int, comp: int, count: int, kind: str, mn: list[float] | None = None, mx: list[float] | None = None) -> int:
+        a: dict[str, Any] = {"bufferView": view, "componentType": comp, "count": count, "type": kind}
         if mn is not None:
             a["min"], a["max"] = mn, mx
         accs.append(a)
         return len(accs) - 1
 
-    out_prims = []
+    out_prims: list[dict[str, Any]] = []
     for pos, nor, uv, idx, mat in prims:
         pp = [((x - cx) * scale, (y - lo[1]) * scale, (z - cz) * scale) for x, y, z in pos]
         attrs = {"POSITION": add_acc(
@@ -218,25 +225,27 @@ def main():
         if uv:
             attrs["TEXCOORD_0"] = add_acc(add_view(b"".join(struct.pack("<2f", *v) for v in uv), 34962),
                                           5126, len(uv), "VEC2")
-        prim = {"attributes": attrs, "mode": 4,
+        prim: dict[str, Any] = {"attributes": attrs, "mode": 4,
                 "indices": add_acc(add_view(struct.pack(f"<{len(idx)}I", *idx), 34963), 5125, len(idx), "SCALAR")}
         if mat is not None:
             prim["material"] = remap[mat]
         out_prims.append(prim)
 
-    images = []
+    images: list[dict[str, Any]] = []
     for img in js.get("images", []):
         v = js["bufferViews"][img["bufferView"]]
         start = v.get("byteOffset", 0)
         images.append({"bufferView": add_view(binary[start:start + v["byteLength"]]),
                        "mimeType": img.get("mimeType", "image/png")})
 
-    out = {"asset": {"version": "2.0", "generator": "bake_skinned_glb.py"}, "scene": 0,
-           "scenes": [{"nodes": [0]}], "nodes": [{"name": "Model", "mesh": 0}],
-           "meshes": [{"name": "Model", "primitives": out_prims}],
-           "materials": [js["materials"][m] for m in used], "textures": js.get("textures", []),
-           "samplers": js.get("samplers", []), "images": images,
-           "buffers": [{"byteLength": len(buf)}], "bufferViews": views, "accessors": accs}
+    out: dict[str, Any] = {
+        "asset": {"version": "2.0", "generator": "bake_skinned_glb.py"}, "scene": 0,
+        "scenes": [{"nodes": [0]}], "nodes": [{"name": "Model", "mesh": 0}],
+        "meshes": [{"name": "Model", "primitives": out_prims}],
+        "materials": [js["materials"][m] for m in used], "textures": js.get("textures", []),
+        "samplers": js.get("samplers", []), "images": images,
+        "buffers": [{"byteLength": len(buf)}], "bufferViews": views, "accessors": accs
+    }
     out = {k: v for k, v in out.items() if v != []}
     text = json.dumps(out, separators=(",", ":")).encode()
     text += b" " * (-len(text) % 4)

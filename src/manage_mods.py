@@ -8,6 +8,7 @@ Usage: python src/manage_mods.py            (menu)
 """
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -71,7 +72,7 @@ def rebuild(game: Path) -> bool:
     try:
         shared.rebuild(game, log)
         return True
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, subprocess.SubprocessError, ValueError, RuntimeError) as exc:
         print(f"  ERREUR : {exc}")
         return False
 

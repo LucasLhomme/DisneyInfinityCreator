@@ -118,9 +118,9 @@ class GameInstall:
             if not self._cache_texture(texture_hash, cached):
                 return None
         try:
-            img = Image.open(cached)
-            img.load()
-            return img
+            with Image.open(cached) as img:
+                img.load()
+                return img.copy()
         except (OSError, ValueError):
             return None
 

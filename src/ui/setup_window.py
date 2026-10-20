@@ -78,7 +78,7 @@ class SetupWindow(ctk.CTk):
                 count = game_data.extract(folder, log=lambda s: None,
                                           progress=lambda i, n, name: self._events.put(("progress", i, n, name)))
                 self._events.put(("done", count))
-            except Exception as exc:  # noqa: BLE001 - shown in the window
+            except (OSError, ValueError, RuntimeError, KeyError) as exc:
                 self._events.put(("error", str(exc)))
         self._worker = threading.Thread(target=work, daemon=True)
         self._worker.start()

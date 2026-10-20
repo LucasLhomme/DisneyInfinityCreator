@@ -8,6 +8,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from src.core.paths import SCRIPTS_DIR
@@ -81,7 +82,7 @@ def clean_model(path: str | Path, blender: str | Path, max_vertices: int = 65000
     if suffix == ".dae":
         try:
             source = dae_to_glb(path, work / "from_dae.glb")
-        except Exception as exc:  # noqa: BLE001
+        except (ValueError, OSError, KeyError, ET.ParseError) as exc:
             raise RuntimeError(f"Reading the .dae failed: {exc}") from exc
         report.append("COLLADA (.dae): converted to .glb for Blender.")
     out = work / "clean.glb"

@@ -297,7 +297,7 @@ def compute_weights(wverts, wfaces, anchors, blender: Path | None, work: Path, l
     if transfer is not None:
         try:
             weights = transfer(wverts, wfaces, names)
-        except Exception as exc:  # noqa: BLE001 - optional feature: never block the import
+        except (RuntimeError, ValueError, OSError, TypeError) as exc:
             log(f"  Robust transfer failed ({exc}) -> bone heat instead")
         if weights is not None:
             method = "robust transfer"

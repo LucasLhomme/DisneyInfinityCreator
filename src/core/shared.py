@@ -16,6 +16,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -127,31 +128,32 @@ def _build(vanilla: Path, stem: str, files: dict[str, Path], out: Path, work: Pa
     from src.core import octane_zip
     if not REENCRYPTER.exists():
         raise FileNotFoundError(f"missing tool: {REENCRYPTER}")
-    stage = work / "stage" / stem
-    shutil.rmtree(stage.parent, ignore_errors=True)
-    stage.mkdir(parents=True)
-    for rel, src in files.items():
-        dst = stage.parent / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-    small, tmp = work / f"{stem}_creator.zip", work / f"{stem}.zip"
-    small.unlink(missing_ok=True)
-    subprocess.run([str(REENCRYPTER), "whyjustwhy", "-e", ZIP_KEY, str(stage), str(small)], check=True,
-                   capture_output=True, creationflags=_NO_WINDOW)
-    octane_zip.merge(vanilla, small, tmp, work / "digests" / f"{stem}.json")
-    # Check: every game file is still there and every Creator file reads back identical.
-    got = {e.name.lower(): e for e in octane_zip.read(tmp)}
-    expected = {e.name.lower() for e in octane_zip.read(vanilla)} | {r.split("/", 1)[1] for r in files}
-    if set(got) != expected:
-        raise RuntimeError(f"{stem}.zip: {len(got)} entries, {len(expected)} expected")
-    for rel, src in files.items():
-        if got[rel.split("/", 1)[1]].data() != src.read_bytes():
-            raise RuntimeError(f"{stem}.zip: {rel} does not read back identical")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(tmp), str(out))
-    small.unlink(missing_ok=True)
-    shutil.rmtree(stage.parent, ignore_errors=True)
-    shutil.rmtree(work / "vanilla", ignore_errors=True)  # extraction cache of the previous method
+    work.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=work, prefix=f"stage_{stem}_") as temp_dir:
+        temp_path = Path(temp_dir)
+        stage = temp_path / stem
+        stage.mkdir(parents=True, exist_ok=True)
+        for rel, src in files.items():
+            dst = temp_path / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+        small = temp_path / f"{stem}_creator.zip"
+        tmp = temp_path / f"{stem}.zip"
+        subprocess.run([str(REENCRYPTER), "whyjustwhy", "-e", ZIP_KEY, str(stage), str(small)], check=True,
+                       capture_output=True, creationflags=_NO_WINDOW)
+        digests_dir = work / "digests"
+        digests_dir.mkdir(parents=True, exist_ok=True)
+        octane_zip.merge(vanilla, small, tmp, digests_dir / f"{stem}.json")
+        got = {e.name.lower(): e for e in octane_zip.read(tmp)}
+        expected = {e.name.lower() for e in octane_zip.read(vanilla)} | {r.split("/", 1)[1] for r in files}
+        if set(got) != expected:
+            raise RuntimeError(f"{stem}.zip: {len(got)} entries, {len(expected)} expected")
+        for rel, src in files.items():
+            if got[rel.split("/", 1)[1]].data() != src.read_bytes():
+                raise RuntimeError(f"{stem}.zip: {rel} does not read back identical")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(tmp), str(out))
+    shutil.rmtree(work / "vanilla", ignore_errors=True)
     return len(got)
 
 

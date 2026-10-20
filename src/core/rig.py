@@ -170,7 +170,7 @@ def build_rig(model: CharacterModel, anchors: dict, base: BaseCharacter, blender
     try:
         robust = _build_rig(model, anchors, base, blender, work, robust_lines, piece_overrides, weight_transfer, fingers,
                             twist)
-    except Exception as exc:  # noqa: BLE001 - optional feature
+    except (RuntimeError, ValueError, OSError) as exc:
         log(f"  Robust transfer unavailable ({exc}) -> standard weights")
         return standard
     if robust.method != "robust transfer":

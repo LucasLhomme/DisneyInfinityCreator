@@ -225,7 +225,8 @@ def _folder_image(folder: Path, model_file: Path, from_zip: bool):
         images = similar or (images if len(images) == 1 else [])
     for path in images:
         try:
-            return Image.open(path).convert("RGB"), path.name
+            with Image.open(path) as img:
+                return img.convert("RGB"), path.name
         except OSError:
             continue
     return None

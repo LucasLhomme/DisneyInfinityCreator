@@ -77,9 +77,9 @@ class _Textures:
                 data = loose.read_bytes()
             else:
                 return None
-            img = Image.open(io.BytesIO(data))
-            img.load()
-            return img
+            with Image.open(io.BytesIO(data)) as img:
+                img.load()
+                return img.copy()
         except (OSError, ValueError):
             return None
 
@@ -157,7 +157,7 @@ def extract(game_dir: str | Path, log: Log = print, progress: Progress | None = 
             status = _status(base)
             total += base_pack.add_to_pack(base, status, textures, looks_like_normal_map)
             rows[entry.actor] = base_pack.index_row(base, status)
-        except Exception as exc:  # noqa: BLE001 - one broken figure must not stop the others
+        except (OSError, ValueError, KeyError, RuntimeError) as exc:
             log(f"  {entry.display_name}: skipped ({exc})")
     if not rows:
         raise RuntimeError("no figure could be read from this game folder")

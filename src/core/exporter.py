@@ -1,5 +1,6 @@
 """Write a rigged character into <game>/mods/<slug>/ as a self-contained CrabeLoader mod, then check it."""
 import json
+import subprocess
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -124,7 +125,7 @@ def install(rig: RigResult, texture: Image.Image, ident: Identity, game_dir: Pat
         try:
             res = shared.rebuild(game_dir, log)
             report.notes.append(f"shared archives ({shared.SHARED_SLUG}): rebuilt {', '.join(res.built) or 'none'}")
-        except Exception as exc:  # noqa: BLE001 - the character itself is installed; the archives can be redone
+        except (OSError, subprocess.SubprocessError, ValueError, RuntimeError) as exc:
             log(f"WARNING shared archives not rebuilt ({exc}). Close the game, then Manage_Mods.bat -> Reconstruire.")
             report.notes.append("shared archives NOT rebuilt: run Manage_Mods.bat")
 

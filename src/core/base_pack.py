@@ -68,9 +68,9 @@ def load_base(cls, entry: RosterEntry):
 def preview_texture(texture_id: str) -> Image.Image | None:
     path = PACK_DIR / "textures" / f"{texture_id.lower()}.jpg"
     try:
-        img = Image.open(path)
-        img.load()
-        return img
+        with Image.open(path) as img:
+            img.load()
+            return img.copy()
     except (OSError, ValueError):
         return None
 
