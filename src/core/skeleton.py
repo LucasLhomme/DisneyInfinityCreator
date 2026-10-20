@@ -5,6 +5,9 @@ mesh (arm line, shoulder width, crotch, knees, ankles...), the UI lets the user 
 `build_anchors` turns them into the joint positions that drive both the preview and the export: bone-heat weights
 are computed against these joints, then every body part is moved from its joint onto the base character's joint.
 """
+from __future__ import annotations
+
+from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
 
 import numpy as np
@@ -73,7 +76,11 @@ def _sections(mesh: trimesh.Trimesh, y: float) -> np.ndarray:
 SIGNIFICANT = 0.4
 
 
-def _body_loop(mesh: trimesh.Trimesh, y: float, keep=None) -> np.ndarray:
+def _body_loop(
+    mesh: trimesh.Trimesh,
+    y: float,
+    keep: Callable[[np.ndarray], np.ndarray] | None = None,
+) -> np.ndarray:
     """Points (K, 3) of the biggest connected outline of the cross-section at height y.
 
     Hair strands, capes, skirts and wings that hang free next to the body give their own separate outlines; taking
@@ -95,7 +102,7 @@ def _body_loop(mesh: trimesh.Trimesh, y: float, keep=None) -> np.ndarray:
     inverse = inverse.reshape(-1, 2)
     parent = np.arange(inverse.max() + 1)
 
-    def find(i):
+    def find(i: int) -> int:
         while parent[i] != i:
             parent[i] = parent[parent[i]]
             i = parent[i]
@@ -110,7 +117,7 @@ def _body_loop(mesh: trimesh.Trimesh, y: float, keep=None) -> np.ndarray:
         pts = seg[label == lab].reshape(-1, 3)
         try:
             area = float(ConvexHull(pts[:, [0, 2]]).volume)  # 2-D hull: .volume is the area
-        except (QhullError, ValueError):  # degenerate (flat or collinear) outline: a cape edge-on, a strand
+        except (ValueError, QhullError):  # degenerate (flat or collinear) outline: a cape edge-on, a strand
             area = 0.0
         outlines.append((area, pts))
     top = max(o[0] for o in outlines)
@@ -134,8 +141,12 @@ def _crosses_midline(mesh: trimesh.Trimesh, y: float, x_limit: float) -> bool:
     return bool(np.any(inside & (np.sign(x0) != np.sign(x1))))
 
 
-def measure(vertices: np.ndarray, faces: np.ndarray, base: BaseCharacter,
-            ignore=None) -> tuple[Proportions, FitReport]:
+def measure(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    base: BaseCharacter | None,
+    ignore: np.ndarray | None = None,
+) -> tuple[Proportions, FitReport]:
     """`ignore`: per-vertex flags of parts the measurement must not see (cape, weapon...)."""
     from src.core.accessories import strip
 
