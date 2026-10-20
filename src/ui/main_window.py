@@ -164,15 +164,26 @@ class MainWindow(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
-        side = ctk.CTkFrame(self, width=380, corner_radius=0, fg_color="#121316")
+        side = ctk.CTkFrame(self, width=410, corner_radius=0, fg_color="#121316")
         side.grid(row=0, column=0, sticky="nsew")
         side.grid_propagate(False)
         side.grid_rowconfigure(1, weight=1)
         side.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(side, text="Disney Infinity Creator", font=ctk.CTkFont(size=20, weight="bold")).grid(
             row=0, column=0, padx=16, pady=(16, 4), sticky="w")
-        self.tabs = ctk.CTkTabview(side, fg_color="#121316")
+        self.tabs = ctk.CTkTabview(
+            side,
+            fg_color="#121316",
+            segmented_button_fg_color="#18181b",
+            segmented_button_selected_color="#2563eb",
+            segmented_button_selected_hover_color="#1d4ed8",
+            segmented_button_unselected_color="#27272a",
+            segmented_button_unselected_hover_color="#3f3f46",
+            segmented_button_font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#f4f4f5",
+        )
         self.tabs.grid(row=1, column=0, padx=8, pady=0, sticky="nsew")
+        self.tabs._segmented_button.configure(height=32, corner_radius=8)
         self._build_base_tab(self.tabs.add("0. Base"))
         model_tab = self.tabs.add("1. Model")
         model_tab.grid_rowconfigure(0, weight=1)
@@ -181,7 +192,7 @@ class MainWindow(ctk.CTk):
         model_scroll.grid(row=0, column=0, sticky="nsew")
         self._build_model_tab(model_scroll)
         self._build_skeleton_tab(self.tabs.add("2. Skeleton"))
-        self._build_abilities_tab(self.tabs.add("3. Abilities & Moveset"))
+        self._build_abilities_tab(self.tabs.add("3. Abilities"))
         self._build_export_tab(self.tabs.add("4. Rig & Export"))
 
         view = ctk.CTkFrame(self, fg_color="#09090b", corner_radius=0)
