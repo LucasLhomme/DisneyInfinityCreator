@@ -2,20 +2,31 @@ import queue
 import threading
 import traceback
 from pathlib import Path
+import tkinter as tk
 from tkinter import filedialog
 
 import customtkinter as ctk
+import numpy as np
+from PIL import Image
 
 from src.core.base_character import BaseCharacter
 from src.core.base_pack import has_pack, preview_texture, status
+from src.core import errorlog
+from src.core.config import normalize_blender_path
+from src.core.accessories import ZONE_LIMIT, detect
+from src.core.cleaner import NEEDS_BLENDER, clean_model
 from src.core.config import load_settings, save_settings
 from src.core.exporter import install
 from src.core.mod_writer import default_actor, make_identity
-from src.core.model import CharacterModel, auto_placement, load_source
+from src.core.model import CharacterModel, auto_placement, extract_archive, load_source
 from src.core.paths import WORK_DIR
-from src.core.rig import build_rig
+from src.core.quality import deformation_report, stretched_segments
+from src.core.ranking import rank_bases
+from src.core.rig import base_tpose, build_rig
 from src.core.roster import find_entry, load_roster
 from src.core.skeleton import (
+    fit_advice,
+    fit_issues,
     apply_apose_to_proportions,
     apply_tpose_to_proportions,
     base_joint_points,
@@ -41,8 +52,28 @@ from src.render.gl_widget import GLRenderer
 from src.ui.timeline import TimelineWidget
 
 GREEN, RED, YELLOW, GREY = "#4ade80", "#f87171", "#fbbf24", "#a1a1aa"
-POSES = {"T-pose": "tpose", "In-game pose": "bind", "Arms up": "arms", "Walk": "walk"}
+POSES = {"T-pose": "tpose", "In-game pose": "bind", "Arms up": "arms", "Walk": "walk", "Overhead": "overhead",
+         "Forward": "reach", "Elbows": "elbow", "Twist": "twist", "Fist": "fist"}
 DEFAULT_BASE = "EMP_Luke"
+GROW_MAX_PIECE = 3000
+""""Grow" only absorbs loose pieces this small (in vertices): never the body or the head."""
+
+# Bones a user can lock a loose piece to (names of the canonical skeleton) and how they read in the menu.
+PIECE_BONES = {
+    "Head": "Head", "Neck": "Neck", "Chest": "Spine3", "Belly": "Spine2", "Hips / pelvis": "Hips",
+    "Left shoulder": "Shoulder_Left", "Right shoulder": "Shoulder_Right",
+    "Left hand": "Hand_Left", "Right hand": "Hand_Right",
+    "Left thigh": "Thigh_Left", "Right thigh": "Thigh_Right",
+    "Left ankle": "Ankle_Left", "Right ankle": "Ankle_Right",
+}
+
+# (Placement field, label, +/- range): metres for offsets, degrees for the fine yaw.
+PLACEMENT_SLIDERS = (
+    ("offset_x", "Left / right (m)", 0.4),
+    ("offset_z", "Back / forward (m)", 0.5),
+    ("offset_y", "Down / up (m)", 0.4),
+    ("yaw_deg", "Fine rotation (°)", 45.0),
+)
 
 # (field, label, low, high, relative) — relative bounds are multiples of the model height, others are 0..1 fractions.
 SKELETON_SLIDERS = (
@@ -56,6 +87,48 @@ SKELETON_SLIDERS = (
     ("knee", "Knees", 0.2, 0.8, False),
     ("ankle_y", "Ankles", 0.01, 0.25, True),
 )
+SKELETON_SLIDERS = SKELETON_SLIDERS[:3] + (("elbow", "Elbow position", 0.3, 0.7, False),) + SKELETON_SLIDERS[3:]
+
+# What each slider should line up with (the green dots in the viewport), and which auto-fit estimate it belongs to.
+SLIDER_HINTS = {
+    "arm_y": "Height of the arm line: the shoulder dots go on the middle of the arms in the T-pose.",
+    "shoulder_x": "Distance from the body centre to the shoulder joint: the dot goes where the arm leaves the torso.",
+    "wrist": "Along the arm: the hand dot goes on the wrist, where the hand starts (not the fingertips).",
+    "elbow": "Along the arm: the elbow dot goes on the elbow crease. 0.5 = halfway between shoulder and wrist.",
+    "neck_y": "Height of the neck base. Too low and the chin stretches, too high and the shoulders pull the neck.",
+    "head_y": "Pivot of the head: the middle of the skull base, roughly the jaw line.",
+    "crotch_y": "Where the legs start. For a long coat or skirt, set it to the real crotch height.",
+    "leg_x": "Distance between the hip joints and the body centre.",
+    "knee": "Knee position between ankle and hip (0.5 = halfway).",
+    "ankle_y": "Height of the ankle joint, just above the foot.",
+}
+ESTIMATE_SLIDERS = {"shoulders": ("arm_y", "shoulder_x"), "wrists": ("wrist", "elbow"), "neck": ("neck_y", "head_y"),
+                    "hips": ("crotch_y",), "legs": ("leg_x", "knee"), "ankles": ("ankle_y",)}
+
+
+class Tooltip:
+    """A small text box that follows the mouse over a widget (shown after the pointer rests on it)."""
+
+    def __init__(self, widget, text=lambda: ""):
+        self.widget, self.text, self.window = widget, text, None
+        widget.bind("<Enter>", self._show, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+
+    def _show(self, event):
+        text = self.text()
+        if not text:
+            return
+        self._hide()
+        self.window = tk.Toplevel(self.widget)
+        self.window.wm_overrideredirect(True)
+        self.window.wm_geometry(f"+{event.x_root + 12}+{event.y_root + 14}")
+        tk.Label(self.window, text=text, justify="left", wraplength=300, background="#27272a", foreground="#e4e4e7",
+                 relief="solid", borderwidth=1, font=("Segoe UI", 9), padx=6, pady=4).pack()
+
+    def _hide(self, _event=None):
+        if self.window is not None:
+            self.window.destroy()
+            self.window = None
 
 
 class MainWindow(ctk.CTk):
@@ -79,6 +152,9 @@ class MainWindow(ctk.CTk):
         self.custom_rig: ParsedRig | None = None
         self.entity_config = EntityConfig()
         self.abilities = CharacterAbilities()
+        self.piece_overrides: list[tuple[tuple[int, ...], str]] = []
+        self._selected_pieces: set[int] = set()
+        self._piece_labels = None
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
@@ -98,7 +174,12 @@ class MainWindow(ctk.CTk):
         self.tabs = ctk.CTkTabview(side, fg_color="#121316")
         self.tabs.grid(row=1, column=0, padx=8, pady=0, sticky="nsew")
         self._build_base_tab(self.tabs.add("0. Base"))
-        self._build_model_tab(self.tabs.add("1. Model"))
+        model_tab = self.tabs.add("1. Model")
+        model_tab.grid_rowconfigure(0, weight=1)
+        model_tab.grid_columnconfigure(0, weight=1)
+        model_scroll = ctk.CTkScrollableFrame(model_tab, fg_color="transparent")
+        model_scroll.grid(row=0, column=0, sticky="nsew")
+        self._build_model_tab(model_scroll)
         self._build_skeleton_tab(self.tabs.add("2. Skeleton"))
         self._build_abilities_tab(self.tabs.add("3. Abilities & Moveset"))
         self._build_export_tab(self.tabs.add("4. Rig & Export"))
@@ -113,10 +194,16 @@ class MainWindow(ctk.CTk):
         self.timeline = TimelineWidget(view, self.animation_player, self._on_anim_frame_changed)
         self.timeline.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 2))
 
+        bar = ctk.CTkFrame(view, fg_color="transparent")
+        bar.grid(row=2, column=0, pady=(2, 4))
         hint = "Left click: orbit  •  right click: pan  •  wheel: zoom  •  double click: frame"
-        ctk.CTkLabel(view, text=hint, text_color=GREY, font=ctk.CTkFont(size=11)).grid(row=2, column=0, pady=(2, 4))
+        ctk.CTkLabel(bar, text=hint, text_color=GREY, font=ctk.CTkFont(size=11)).grid(row=0, column=0, padx=(0, 16))
+        self.views_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(bar, text="3 views (front / side / top)", variable=self.views_var, command=self.on_views_toggle,
+                        font=ctk.CTkFont(size=11), checkbox_width=18, checkbox_height=18).grid(row=0, column=1)
         view.grid_propagate(False)
         self.renderer = GLRenderer(self.view_label)
+        self.view_label.bind("<Control-Button-1>", self.on_pick_piece)
         view.bind("<Configure>", lambda e: self.renderer.resize(e.width, max(50, e.height - 75)))
         self.after(50, self._drain_events)
         self.after(100, self._start)
@@ -126,6 +213,7 @@ class MainWindow(ctk.CTk):
         if self.rig:
             posed_verts, posed_world = self.animation_player.evaluate_pose_and_world(self.rig)
             self.renderer.update_model_vertices(posed_verts)
+            self.renderer.set_heat_lines(None)  # the red overlay only describes the static test poses
             if getattr(self.timeline, "sync_compare", True) and self.base and self.renderer.show_ghost:
                 ghost_verts = self.base.deform_preview_parts(posed_world)
                 self.renderer.update_ghost_vertices(ghost_verts)
@@ -146,7 +234,7 @@ class MainWindow(ctk.CTk):
     def _start(self):
         if not has_pack():
             self.base_info.configure(text="Creator's base pack is missing (src/assets/bases): "
-                                          "run tools/build_base_pack.py.", text_color=RED)
+                                          "restart Creator to extract it from the game.", text_color=RED)
             return
         self.on_pick_base(self.settings.get("base_actor", DEFAULT_BASE))
 
@@ -178,12 +266,50 @@ class MainWindow(ctk.CTk):
         self.base_info = ctk.CTkLabel(tab, text="Loading…", wraplength=330, justify="left",
                                       font=ctk.CTkFont(size=11))
         self.base_info.grid(row=4, column=0, sticky="w", pady=(2, 4))
+        self.suggest_button = ctk.CTkButton(tab, text="Suggest the best bases for my model", fg_color="#27272a",
+                                            hover_color="#3f3f46", font=ctk.CTkFont(size=11, weight="bold"),
+                                            command=self.on_suggest_bases)
+        self.suggest_button.grid(row=5, column=0, sticky="ew", pady=(2, 2))
+        self.suggest_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        self.suggest_frame.grid(row=6, column=0, sticky="ew")
+        self.suggest_frame.grid_columnconfigure(0, weight=1)
 
     def _build_model_tab(self, tab):
         tab.grid_columnconfigure(0, weight=1)
-        ctk.CTkButton(tab, text="Import a 3D model (.zip .obj .glb .gltf ...)", fg_color="#ffffff",
+        import_box = ctk.CTkFrame(tab, fg_color="transparent")
+        import_box.grid(row=0, column=0, sticky="ew", pady=(4, 2))
+        import_box.grid_columnconfigure(0, weight=1)
+        ctk.CTkButton(import_box, text="Import a 3D model (.zip .obj .glb .gltf .fbx ...)", fg_color="#ffffff",
                       text_color="#09090b", hover_color="#e4e4e7", font=ctk.CTkFont(weight="bold"),
-                      command=self.on_import).grid(row=0, column=0, sticky="ew", pady=(4, 2))
+                      command=self.on_import).grid(row=0, column=0, sticky="ew")
+        self.clean_var = ctk.BooleanVar(value=bool(self.settings.get("clean_on_import", True)))
+        ctk.CTkCheckBox(import_box, text="Clean with Blender while importing (needed for .fbx, fixes scale, "
+                                         "pieces and lost textures)", variable=self.clean_var, font=ctk.CTkFont(size=11),
+                        command=lambda: self.settings.update(clean_on_import=bool(self.clean_var.get()))
+                        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        budget_row = ctk.CTkFrame(import_box, fg_color="transparent")
+        budget_row.grid(row=2, column=0, sticky="w", pady=(2, 0))
+        ctk.CTkLabel(budget_row, text="Triangle budget (cleaning):", font=ctk.CTkFont(size=11)).grid(row=0, column=0)
+        self.budget_var = ctk.StringVar(value=str(self.settings.get("triangle_budget", "8000")))
+        ctk.CTkOptionMenu(budget_row, values=["No limit", "12000", "8000", "5000", "3000"], variable=self.budget_var,
+                          width=100, height=22, font=ctk.CTkFont(size=11),
+                          command=lambda v: self.settings.update(triangle_budget=v)).grid(row=0, column=1, padx=6)
+        self.transfer_var = ctk.BooleanVar(value=bool(self.settings.get("robust_transfer", False)))
+        ctk.CTkCheckBox(import_box, text="Robust weight transfer: also try copying the weights of the base body, "
+                                         "keep the best (skirts, capes, long coats)", variable=self.transfer_var,
+                        font=ctk.CTkFont(size=11),
+                        command=lambda: self.settings.update(robust_transfer=bool(self.transfer_var.get()))
+                        ).grid(row=3, column=0, sticky="w", pady=(4, 0))
+        self.fingers_var = ctk.BooleanVar(value=bool(self.settings.get("finger_weights_v2", False)))
+        ctk.CTkCheckBox(import_box, text="Finger weights (experimental): fingers curl with the base's grips; can crumple hands",
+                        variable=self.fingers_var, font=ctk.CTkFont(size=11),
+                        command=lambda: self.settings.update(finger_weights_v2=bool(self.fingers_var.get()))
+                        ).grid(row=4, column=0, sticky="w", pady=(4, 0))
+        self.twist_var = ctk.BooleanVar(value=bool(self.settings.get("twist_bones", True)))
+        ctk.CTkCheckBox(import_box, text="Game twist bones: shoulders, forearms and hips share their weight like the "
+                                         "official figures", variable=self.twist_var, font=ctk.CTkFont(size=11),
+                        command=lambda: self.settings.update(twist_bones=bool(self.twist_var.get()))
+                        ).grid(row=5, column=0, sticky="w", pady=(4, 0))
         ctk.CTkButton(tab, text="Import Blender Rig & Tracks (.glb .gltf .json)", fg_color="#27272a",
                       hover_color="#3f3f46", text_color="#e4e4e7",
                       command=self.on_import_rig).grid(row=1, column=0, sticky="ew", pady=(0, 6))
@@ -201,9 +327,9 @@ class MainWindow(ctk.CTk):
         row = ctk.CTkFrame(tab, fg_color="transparent")
         row.grid(row=5, column=0, sticky="ew", pady=(2, 10))
         for i, (text, cmd) in enumerate((("↻ 90°", lambda: self.on_turn(1)), ("↻ 180°", lambda: self.on_turn(2)),
-                                         ("Stand up", self.on_upright))):
+                                         ("Stand up", self.on_upright), ("⇅ Flip", self.on_flip))):
             row.grid_columnconfigure(i, weight=1)
-            ctk.CTkButton(row, text=text, width=90, fg_color="#27272a", hover_color="#3f3f46", command=cmd).grid(
+            ctk.CTkButton(row, text=text, width=70, fg_color="#27272a", hover_color="#3f3f46", command=cmd).grid(
                 row=0, column=i, padx=2, sticky="ew")
 
         self.height_label = ctk.CTkLabel(tab, text="Model height")
@@ -211,12 +337,133 @@ class MainWindow(ctk.CTk):
         self.height_slider = ctk.CTkSlider(tab, from_=0.5, to=3.5, command=self.on_height)
         self.height_slider.set(2.0)
         self.height_slider.grid(row=7, column=0, sticky="ew", pady=(0, 10))
+        self._value_entry(tab, 6, self.height_slider, self.on_height)
         self._update_height_label()
 
+        ctk.CTkLabel(tab, text="Position (move the model if the skeleton is not centred in the body):",
+                     wraplength=330, justify="left").grid(row=8, column=0, sticky="w")
+        self.place_sliders = {}
+        for i, (key, text, span) in enumerate(PLACEMENT_SLIDERS):
+            r = 9 + 2 * i
+            label = ctk.CTkLabel(tab, text=text, font=ctk.CTkFont(size=11), text_color=GREY)
+            label.grid(row=r, column=0, sticky="w")
+            slider = ctk.CTkSlider(tab, from_=-span, to=span, command=lambda v, k=key: self.on_place_slider(k, v))
+            slider.set(0)
+            slider.grid(row=r + 1, column=0, sticky="ew", pady=(0, 4))
+            self.place_sliders[key] = (slider, label, text, span)
+            self._value_entry(tab, r, slider, lambda v, k=key: self.on_place_slider(k, v))
+        nudge = ctk.CTkFrame(tab, fg_color="transparent")
+        nudge.grid(row=9 + 2 * len(PLACEMENT_SLIDERS), column=0, sticky="ew", pady=(2, 8))
+        for i, (text, cmd) in enumerate((("◀ 1 cm", lambda: self.on_nudge("offset_x", -0.01)),
+                                         ("1 cm ▶", lambda: self.on_nudge("offset_x", 0.01)),
+                                         ("▼ back", lambda: self.on_nudge("offset_z", -0.01)),
+                                         ("▲ forward", lambda: self.on_nudge("offset_z", 0.01)),
+                                         ("Recentre", self.on_recentre))):
+            nudge.grid_columnconfigure(i, weight=1)
+            ctk.CTkButton(nudge, text=text, width=56, height=26, fg_color="#27272a", hover_color="#3f3f46",
+                          font=ctk.CTkFont(size=11), command=cmd).grid(row=0, column=i, padx=1, sticky="ew")
+
         self.ghost_var = ctk.BooleanVar(value=True)
-        self.ghost_box = ctk.CTkCheckBox(tab, text="Show the base figure alongside (comparison)",
+        ghost_row = ctk.CTkFrame(tab, fg_color="transparent")
+        ghost_row.grid(row=10 + 2 * len(PLACEMENT_SLIDERS), column=0, sticky="w", pady=4)
+        self.ghost_box = ctk.CTkCheckBox(ghost_row, text="Show the base figure alongside (comparison)",
                                          variable=self.ghost_var, command=self.on_ghost)
-        self.ghost_box.grid(row=8, column=0, sticky="w", pady=4)
+        self.ghost_box.grid(row=0, column=0, sticky="w")
+        self.ghost_tpose_var = ctk.BooleanVar(value=bool(self.settings.get("ghost_tpose", True)))
+        ctk.CTkCheckBox(ghost_row, text="in T-pose", variable=self.ghost_tpose_var, width=60,
+                        command=self.on_ghost_tpose).grid(row=0, column=1, padx=(8, 0))
+
+        r0 = 11 + 2 * len(PLACEMENT_SLIDERS)
+        ctk.CTkLabel(tab, text="Pieces: Ctrl+click a part in the view (hair, cape, weapon…), \"Grow\" to take the "
+                               "loose pieces touching it, then \"Lock\" to make it follow one bone rigidly.", wraplength=330, justify="left", text_color=GREY,
+                     font=ctk.CTkFont(size=11)).grid(row=r0, column=0, sticky="w", pady=(10, 2))
+        self.piece_label = ctk.CTkLabel(tab, text="No piece selected.", font=ctk.CTkFont(size=11), anchor="w")
+        self.piece_label.grid(row=r0 + 1, column=0, sticky="w")
+        piece_row = ctk.CTkFrame(tab, fg_color="transparent")
+        piece_row.grid(row=r0 + 2, column=0, sticky="ew", pady=(2, 2))
+        piece_row.grid_columnconfigure(0, weight=1)
+        self.piece_bone = ctk.CTkOptionMenu(piece_row, values=list(PIECE_BONES), height=26, fg_color="#27272a",
+                                            button_color="#3f3f46")
+        self.piece_bone.set("Head")
+        self.piece_bone.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        self.piece_grow = ctk.CTkButton(piece_row, text="Grow", width=56, height=26, fg_color="#27272a",
+                                        hover_color="#3f3f46", command=self.on_piece_grow, state="disabled")
+        self.piece_grow.grid(row=0, column=1, padx=(0, 4))
+        self.piece_apply = ctk.CTkButton(piece_row, text="Lock", width=56, height=26, fg_color="#27272a",
+                                         hover_color="#3f3f46", command=self.on_piece_apply, state="disabled")
+        self.piece_apply.grid(row=0, column=2)
+        self.piece_list = ctk.CTkFrame(tab, fg_color="transparent")
+        self.piece_list.grid(row=r0 + 3, column=0, sticky="ew")
+        self.piece_list.grid_columnconfigure(0, weight=1)
+
+        acc = ctk.CTkFrame(tab, fg_color="transparent")
+        acc.grid(row=r0 + 4, column=0, sticky="ew", pady=(10, 0))
+        acc.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(acc, text="Accessories (cape, tail, wings, weapon): they fake the body measurements. Find them, "
+                               "then ignore them (kept, but skinned to follow the torso) or remove them.",
+                     wraplength=330, justify="left", text_color=GREY, font=ctk.CTkFont(size=11)).grid(
+            row=0, column=0, columnspan=2, sticky="w")
+        self.acc_limit = ctk.CTkSlider(acc, from_=0.08, to=0.4, command=self.on_acc_limit)
+        self.acc_limit.set(ZONE_LIMIT)
+        self.acc_limit.grid(row=2, column=0, sticky="ew", pady=(0, 2))
+        self.acc_limit_label = ctk.CTkLabel(acc, text="", font=ctk.CTkFont(size=11), text_color=GREY)
+        self._value_entry(acc, 1, self.acc_limit, self.on_acc_limit, "{:.2f}")
+        self.acc_limit_label.grid(row=1, column=0, sticky="w")
+        self.on_acc_limit(ZONE_LIMIT, detect=False)
+        acc_row = ctk.CTkFrame(acc, fg_color="transparent")
+        acc_row.grid(row=3, column=0, columnspan=2, sticky="ew")
+        acc_row.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        self.acc_buttons = {}
+        for i, (key, text, cmd) in enumerate((("find", "Find", self.on_acc_find), ("ignore", "Ignore", self.on_acc_ignore),
+                                              ("remove", "Remove", self.on_acc_remove),
+                                              ("clear", "Clear", self.on_acc_clear))):
+            self.acc_buttons[key] = ctk.CTkButton(acc_row, text=text, height=26, width=60, fg_color="#27272a",
+                                                  hover_color="#3f3f46", command=cmd,
+                                                  state="normal" if key == "find" else "disabled")
+            self.acc_buttons[key].grid(row=0, column=i, padx=1, sticky="ew")
+        self.acc_label = ctk.CTkLabel(acc, text="", font=ctk.CTkFont(size=11), anchor="w", wraplength=330,
+                                      justify="left")
+        self.acc_label.grid(row=4, column=0, columnspan=2, sticky="w")
+        self.acc_list = ctk.CTkFrame(acc, fg_color="transparent")
+        self.acc_list.grid(row=5, column=0, columnspan=2, sticky="ew")
+        self.acc_list.grid_columnconfigure(0, weight=1)
+        self._zone_mask = None
+
+        look = ctk.CTkFrame(tab, fg_color="transparent")
+        look.grid(row=r0 + 5, column=0, sticky="ew", pady=(10, 0))
+        look.grid_columnconfigure(0, weight=1)
+        self.look_label = ctk.CTkLabel(look, text="", wraplength=330, justify="left", text_color=GREY,
+                                       font=ctk.CTkFont(size=11))
+        self.look_label.grid(row=0, column=0, columnspan=2, sticky="w")
+        self.look_slider = ctk.CTkSlider(look, from_=0, to=1, command=self._on_look_drag)
+        self.look_slider.set(float(self.settings.get("game_look", 0.0)))
+        self.look_slider.grid(row=1, column=0, sticky="ew")
+        self.look_slider.bind("<ButtonRelease-1>", lambda _e: self.on_look(self.look_slider.get()))
+        self._value_entry(look, 1, self.look_slider, self.on_look, "{:.2f}")
+        self._on_look_drag(self.look_slider.get())
+        self.match_label = ctk.CTkLabel(look, text="", wraplength=330, justify="left", text_color=GREY,
+                                        font=ctk.CTkFont(size=11))
+        self.match_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(4, 0))
+        self.match_slider = ctk.CTkSlider(look, from_=0, to=1, command=self._on_match_drag)
+        self.match_slider.set(float(self.settings.get("match_brightness", 0.0)))
+        self.match_slider.grid(row=3, column=0, sticky="ew")
+        self.match_slider.bind("<ButtonRelease-1>", lambda _e: self.on_match(self.match_slider.get()))
+        self._value_entry(look, 3, self.match_slider, self.on_match, "{:.2f}")
+        self._on_match_drag(self.match_slider.get())
+
+        icon_row = ctk.CTkFrame(tab, fg_color="transparent")
+        icon_row.grid(row=r0 + 6, column=0, sticky="ew", pady=(10, 0))
+        icon_row.grid_columnconfigure(0, weight=1)
+        self.icon_var = ctk.BooleanVar(value=bool(self.settings.get("make_icon", True)))
+        ctk.CTkCheckBox(icon_row, text="Character icons: photograph the head and the figure when installing",
+                        variable=self.icon_var, font=ctk.CTkFont(size=11),
+                        command=lambda: self.settings.update(make_icon=bool(self.icon_var.get()))
+                        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(icon_row, text="Preview", width=70, height=24, fg_color="#27272a", hover_color="#3f3f46",
+                      command=self.on_preview_icon).grid(row=0, column=1, padx=(6, 0))
+
+        ctk.CTkButton(tab, text="Preview the texture atlas", fg_color="#27272a", hover_color="#3f3f46",
+                      command=self.on_preview_texture).grid(row=r0 + 7, column=0, sticky="ew", pady=(10, 4))
 
     def _build_skeleton_tab(self, tab):
         tab.grid_columnconfigure(0, weight=1)
@@ -226,6 +473,10 @@ class MainWindow(ctk.CTk):
         self.skel_var = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(top, text="Custom Skeleton (Green)", variable=self.skel_var,
                         command=self.on_skeleton_toggle, font=ctk.CTkFont(size=11)).grid(row=0, column=0, sticky="w")
+        self.game_pose_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(top, text="Preview in game pose (arms down, as baked)", variable=self.game_pose_var,
+                        command=self.on_game_pose_preview, font=ctk.CTkFont(size=11)).grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
         self.base_skel_var = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(top, text="Base Skeleton (Cyan)", variable=self.base_skel_var,
                         command=self.on_base_skeleton_toggle, font=ctk.CTkFont(size=11),
@@ -248,21 +499,178 @@ class MainWindow(ctk.CTk):
                                       wraplength=330, justify="left", font=ctk.CTkFont(size=11))
         self.fit_label.grid(row=3, column=0, sticky="w", pady=(2, 4))
         self.sliders = {}
+        self._status_icons, self._status_text = {}, {}
         scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent", height=380)
         scroll.grid(row=4, column=0, sticky="nsew")
+        tab.grid_rowconfigure(4, weight=1)  # the scrolling area takes all the height left
         scroll.grid_columnconfigure(0, weight=1)
         for i, (name, text, lo, hi, rel) in enumerate(SKELETON_SLIDERS):
             label = ctk.CTkLabel(scroll, text=text, font=ctk.CTkFont(size=12))
-            label.grid(row=2 * i, column=0, sticky="w")
+            label.grid(row=3 * i, column=0, sticky="w")
             slider = ctk.CTkSlider(scroll, from_=lo, to=hi, command=lambda v, n=name: self.on_slider(n, v))
-            slider.grid(row=2 * i + 1, column=0, sticky="ew", pady=(0, 6))
+            slider.grid(row=3 * i + 1, column=0, sticky="ew")
             slider.configure(state="disabled")
+            ctk.CTkLabel(scroll, text=SLIDER_HINTS.get(name, ""), font=ctk.CTkFont(size=10), text_color=GREY,
+                         wraplength=300, justify="left").grid(row=3 * i + 2, column=0, sticky="w", pady=(0, 6))
             self.sliders[name] = (slider, label, text, rel)
+            self._value_entry(scroll, 3 * i, slider, lambda v, n=name: self.on_slider(n, v))
+            icon = ctk.CTkLabel(scroll, text="", width=18, font=ctk.CTkFont(size=13))
+            icon.grid(row=3 * i, column=2, sticky="e", padx=(4, 0))
+            self._status_icons[name] = icon
+            Tooltip(icon, lambda n=name: self._status_text.get(n, ""))
         legend = ("• Green skeleton: Fitted to your 3D model (arms, legs, head).\n"
                   "• Cyan skeleton: Base character reference (on the ghost figure).\n"
                   "• Note: The builder automatically retargets your model to the game's bind pose.")
-        ctk.CTkLabel(tab, text=legend, text_color=GREY, wraplength=330, justify="left", font=ctk.CTkFont(size=10)).grid(
-            row=5, column=0, sticky="w", pady=4)
+        # Everything below the fitting sliders sits in the same scrolling area: the tab is taller than the window.
+        limbs = ctk.CTkFrame(scroll, fg_color="transparent")
+        limbs.grid(row=3 * len(SKELETON_SLIDERS), column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        limbs.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(limbs, text="Proportions (Disney Infinity figures have a big head, chunky forearms and thick "
+                                 "limbs; thin limbs get pinched in game). Shown live, applied when the rig is built.",
+                     wraplength=330, justify="left",
+                     text_color=GREY, font=ctk.CTkFont(size=11)).grid(row=0, column=0, columnspan=2, sticky="w")
+        self.limb_sliders = {}
+        for i, (key, text) in enumerate((("head_scale", "Head"), ("torso_scale", "Torso"),
+                                         ("v_shape", "V-shape (chest fills the gap under the arms)"),
+                                         ("arm_scale", "Arms"), ("forearm_scale", "Forearms"), ("leg_scale", "Legs"))):
+            unit = "" if key == "v_shape" else "×"
+            label = ctk.CTkLabel(limbs, text=f"{text}: {unit}{0.0 if key == 'v_shape' else 1.0:.2f}",
+                                 font=ctk.CTkFont(size=12))
+            label.grid(row=1 + 2 * i, column=0, sticky="w")
+            low, high = {"head_scale": (0.8, 1.5), "v_shape": (0.0, 1.0)}.get(key, (0.8, 1.8))
+            slider = ctk.CTkSlider(limbs, from_=low, to=high, command=lambda v, k=key: self.on_limb(k, v))
+            slider.set(0.0 if key == "v_shape" else 1.0)
+            slider.grid(row=2 + 2 * i, column=0, sticky="ew")
+            self._value_entry(limbs, 1 + 2 * i, slider, lambda v, k=key: self.on_limb(k, v), "{:.2f}")
+            self.limb_sliders[key] = (slider, label, text)
+        self.limb_hint = ctk.CTkLabel(limbs, text="", font=ctk.CTkFont(size=10), text_color=GREY, wraplength=320,
+                                      justify="left")
+        buttons = ctk.CTkFrame(limbs, fg_color="transparent")
+        buttons.grid(row=13, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        buttons.grid_columnconfigure((0, 1), weight=1)
+        ctk.CTkButton(buttons, text="Disney Infinity style", height=24, fg_color="#1d4ed8", hover_color="#2563eb",
+                      command=self.on_disney_style).grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        ctk.CTkButton(buttons, text="Match the base", height=24, fg_color="#27272a", hover_color="#3f3f46",
+                      command=self.on_limb_match).grid(row=0, column=1, sticky="ew", padx=(2, 0))
+        ctk.CTkButton(buttons, text="Reset", height=22, fg_color="#27272a", hover_color="#3f3f46",
+                      command=self.on_limb_reset).grid(row=1, column=0, columnspan=2, sticky="ew", pady=(2, 0))
+        self.limb_hint.grid(row=14, column=0, columnspan=2, sticky="w")
+        ctk.CTkLabel(scroll, text=legend, text_color=GREY, wraplength=320, justify="left", font=ctk.CTkFont(size=10)).grid(
+            row=3 * len(SKELETON_SLIDERS) + 1, column=0, columnspan=3, sticky="w", pady=4)
+
+    def _display_vertices(self):
+        """The model as shown before the rig is built: placed, with the limb thickness previewed."""
+        verts = self.model.vertices()
+        m = self.model
+        if self.anchors is None:
+            return verts
+        from src.core.limbs import preview, quick_game_pose
+        self._sync_v_target()
+        verts = preview(verts, self.anchors, m.arm_scale, m.leg_scale, m.torso_scale, m.head_scale, m.forearm_scale,
+                        m.v_shape, m.v_target)
+        if getattr(self, "game_pose_var", None) is not None and self.game_pose_var.get() and self.base is not None:
+            verts = quick_game_pose(verts, self.anchors, self.base.joints)
+        return verts
+
+    def on_game_pose_preview(self):
+        """Skeleton tab: show the model in the game's rest pose (rough weights) while the points are adjusted."""
+        if not self.model or self.anchors is None:
+            return
+        if self.rig is not None:  # the real rig is there: show its in-game pose instead
+            self.pose_buttons.set("In-game pose" if self.game_pose_var.get() else "T-pose")
+            self.on_pose("In-game pose" if self.game_pose_var.get() else "T-pose")
+            return
+        self.renderer.update_model_vertices(self._display_vertices())
+        self._update_skeleton_overlay()
+        self._show_base_rest(self._model_shown_in_tpose())
+        self.renderer.request_render()
+
+    def _update_skeleton_overlay(self):
+        """The green fitted skeleton, drawn on the model: in the game's rest pose while that preview is on."""
+        if self.anchors is None:
+            return
+        anchors = self.anchors
+        if getattr(self, "game_pose_var", None) is not None and self.game_pose_var.get() and self.base is not None:
+            from src.core.limbs import posed_anchors
+            anchors = posed_anchors(self.anchors, self.base.joints)
+        self.renderer.set_skeleton(skeleton_segments(anchors), joint_points(anchors))
+
+    def _sync_v_target(self):
+        """The V-shape widens the chest up to the inner side of the hanging arm: that width depends on the base's
+        shoulders and on the model's arm thickness."""
+        from src.core.limbs import v_target
+        m = self.model
+        if m is None or self.anchors is None or self.base is None or m.v_shape <= 0:
+            return
+        m.v_target = v_target(m.vertices(), self.anchors, self.base.joints, m.arm_scale)
+
+    def on_limb(self, key, value):
+        value = float(value)
+        slider, label, text = self.limb_sliders[key]
+        label.configure(text=f"{text}: {value:.2f}" if key == "v_shape" else f"{text}: ×{value:.2f}")
+        self._sync_entry(slider)
+        if not self.model:
+            return
+        setattr(self.model, key, value)
+        if self.anchors is None:
+            return
+        if self.rig is not None:
+            self._geometry_changed()  # back to the T-pose model: the rig is stale
+            self.log("Proportions changed: build the rig again to apply them.")
+        else:
+            self.renderer.update_model_vertices(self._display_vertices())
+            self.renderer.request_render()
+
+    def _limb_suggestion(self):
+        from src.core.limbs import suggest, suggest_torso
+        parts = getattr(self, "base_parts", None) or []
+        if not (self.model and self.base and self.anchors and parts):
+            return None
+        base_verts = np.concatenate([p[0] for p in parts])
+        verts = self.model.vertices()
+        arms, forearms, legs = suggest(verts, self.anchors, base_verts, self.base.joints)
+        return {"arm_scale": arms, "forearm_scale": forearms, "leg_scale": legs,
+                "torso_scale": suggest_torso(verts, self.anchors, base_verts, self.base.joints)}
+
+    def _apply_proportions(self, values: dict):
+        for key, value in values.items():
+            self.limb_sliders[key][0].set(value)
+            self.on_limb(key, value)
+
+    def on_limb_match(self):
+        values = self._limb_suggestion()
+        if values is None:
+            self.limb_hint.configure(text="Import a model and pick a base first.")
+            return
+        values["head_scale"] = 1.0
+        values["v_shape"] = 1.0
+        self._apply_proportions(values)
+        self.limb_hint.configure(text="Matched to the base: " + self._proportions_text(values) +
+                                      " (head untouched; never thinner; baggy clothes count as thick).")
+
+    def on_disney_style(self):
+        """Bring the model to the average proportions of the game's humanoid figures."""
+        from src.core.limbs import disney_style
+        if not (self.model and self.anchors):
+            self.limb_hint.configure(text="Import a model first.")
+            return
+        values = disney_style(self.model.vertices(), self.anchors)
+        values["v_shape"] = 1.0 if self.base is not None else 0.0
+        self._apply_proportions(values)
+        self.limb_hint.configure(text="Disney Infinity style (average of 30 figures of the game): "
+                                      + self._proportions_text(values) + ". Never smaller than your model; fine-tune "
+                                      "with the sliders.")
+
+    def on_limb_reset(self):
+        self._apply_proportions({key: 0.0 if key == "v_shape" else 1.0 for key in self.limb_sliders})
+        self.limb_hint.configure(text="Proportions back to the model's own.")
+
+    @staticmethod
+    def _proportions_text(values: dict) -> str:
+        names = (("head_scale", "head"), ("torso_scale", "torso"), ("arm_scale", "arms"),
+                 ("forearm_scale", "forearms"), ("leg_scale", "legs"))
+        text = ", ".join(f"{label} ×{values[key]:.2f}" for key, label in names if key in values)
+        return text + (f", V-shape {values['v_shape']:.2f}" if "v_shape" in values else "")
 
     # -------------------------------------------------------- abilities & moveset
     def _build_abilities_tab(self, tab):
@@ -570,7 +978,6 @@ class MainWindow(ctk.CTk):
             self.anim_status_label.configure(text="Please import an animation file first.", text_color=YELLOW)
             return
         ca = self.abilities.custom_animations[slot]
-        slot_label = self.anim_slot_menu.get()
         target_clip = None
         for name in self.timeline.clips:
             if slot in name.lower() or ca.name in name or (ca.track and ca.track.name in name):
@@ -639,10 +1046,36 @@ class MainWindow(ctk.CTk):
                                         font=ctk.CTkFont(weight="bold"), command=self.on_rig)
         self.rig_button.grid(row=8, column=0, sticky="ew", pady=(8, 4))
         ctk.CTkLabel(tab, text="Rig preview:", font=ctk.CTkFont(size=12)).grid(row=9, column=0, sticky="w")
-        self.pose_buttons = ctk.CTkSegmentedButton(tab, values=list(POSES), command=self.on_pose)
+        pose_box = ctk.CTkFrame(tab, fg_color="transparent")
+        pose_box.grid(row=10, column=0, sticky="ew", pady=(0, 6))
+        pose_box.grid_columnconfigure(0, weight=1)
+        self.pose_buttons = ctk.CTkSegmentedButton(pose_box, values=list(POSES), command=self.on_pose)
         self.pose_buttons.set("T-pose")
-        self.pose_buttons.grid(row=10, column=0, sticky="ew", pady=(0, 6))
+        self.pose_buttons.grid(row=0, column=0, sticky="ew")
         self.pose_buttons.configure(state="disabled")
+        self.pose_amount_label = ctk.CTkLabel(pose_box, text="Pose amount: 100%", font=ctk.CTkFont(size=11),
+                                              text_color=GREY)
+        self.pose_amount_label.grid(row=1, column=0, sticky="w")
+        self.pose_amount = ctk.CTkSlider(pose_box, from_=0.2, to=1.5, command=self.on_pose_amount)
+        self.pose_amount.set(1.0)
+        self.pose_amount.grid(row=2, column=0, sticky="ew")
+        self._value_entry(pose_box, 1, self.pose_amount, self.on_pose_amount, "{:.2f}")
+        self.quality_label = ctk.CTkLabel(pose_box, text="Deformation: build the rig to measure it.",
+                                          font=ctk.CTkFont(size=11), text_color=GREY, justify="left", anchor="w")
+        self.quality_label.grid(row=3, column=0, sticky="w", pady=(4, 0))
+        self.heat_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(pose_box, text="Show stretched edges in red", variable=self.heat_var,
+                        command=self.on_heat_toggle, font=ctk.CTkFont(size=11), checkbox_width=18,
+                        checkbox_height=18).grid(row=4, column=0, sticky="w", pady=(2, 0))
+        self.round_label = ctk.CTkLabel(pose_box, text="", font=ctk.CTkFont(size=11), text_color=GREY,
+                                        justify="left", wraplength=320)
+        self.round_label.grid(row=5, column=0, sticky="w", pady=(6, 0))
+        self.round_slider = ctk.CTkSlider(pose_box, from_=0, to=1, command=self._on_round_drag)
+        self.round_slider.set(float(self.settings.get("shoulder_roundness", 0.0)))
+        self.round_slider.grid(row=6, column=0, sticky="ew")
+        self.round_slider.bind("<ButtonRelease-1>", lambda _e: self.on_roundness(self.round_slider.get()))
+        self._value_entry(pose_box, 5, self.round_slider, self.on_roundness, "{:.2f}")
+        self._on_round_drag(self.round_slider.get(), live=False)
 
         ctk.CTkLabel(tab, text="Entity Type (Character, Enemy, Ally/NPC):", font=ctk.CTkFont(size=12)).grid(
             row=11, column=0, sticky="w")
@@ -688,11 +1121,23 @@ class MainWindow(ctk.CTk):
         self.install_button = ctk.CTkButton(tab, text="2. Install into the game", fg_color="#fbbf24",
                                             text_color="#09090b", hover_color="#f59e0b",
                                             font=ctk.CTkFont(weight="bold"), command=self.on_install)
-        self.install_button.grid(row=14, column=0, sticky="ew", pady=(4, 8))
+        self.install_button.grid(row=15, column=0, sticky="ew", pady=(4, 8))
+        tex_box = ctk.CTkFrame(tab, fg_color="transparent")
+        tex_box.grid(row=14, column=0, sticky="w", pady=(4, 0))
+        self.zip_var = ctk.BooleanVar(value=bool(self.settings.get("legacy_zip", True)))
+        ctk.CTkCheckBox(tex_box, text="Shared texture and icon archives (mods/zz_creator_shared) - required for textures and icons in game",
+                        variable=self.zip_var, font=ctk.CTkFont(size=11),
+                        command=lambda: self.settings.update(legacy_zip=bool(self.zip_var.get()))
+                        ).grid(row=0, column=0, sticky="w")
+        self.relief_var = ctk.BooleanVar(value=bool(self.settings.get("relief_normals", True)))
+        ctk.CTkCheckBox(tex_box, text="Relief: carve seams and folds from the texture (normal map, like the game's figures)",
+                        variable=self.relief_var, font=ctk.CTkFont(size=11),
+                        command=lambda: self.settings.update(relief_normals=bool(self.relief_var.get()))
+                        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
         self.log_box = ctk.CTkTextbox(tab, height=240, fg_color="#0c0c0e", font=ctk.CTkFont(family="Consolas", size=11),
                                       wrap="word")
-        self.log_box.grid(row=15, column=0, sticky="nsew")
-        tab.grid_rowconfigure(15, weight=1)
+        self.log_box.grid(row=16, column=0, sticky="nsew")
+        tab.grid_rowconfigure(16, weight=1)
 
     def _on_entity_type_changed(self, choice: str):
         if choice == "Avatar":
@@ -735,7 +1180,7 @@ class MainWindow(ctk.CTk):
             self.actor_entry.insert(0, default_actor(self.name_entry.get()))
 
     def _save_settings(self):
-        self.settings.update(game_path=self.game_entry.get().strip(), blender_path=self.blender_entry.get().strip(),
+        self.settings.update(game_path=self.game_entry.get().strip(), blender_path=normalize_blender_path(self.blender_entry.get()),
                              mod_name=self.name_entry.get().strip())
         if self.base:
             self.settings["base_actor"] = self.base.actor
@@ -765,6 +1210,35 @@ class MainWindow(ctk.CTk):
     def _update_height_label(self):
         ref = f" ({self.base.display_name} = {self.base.fit_height:.2f})" if self.base else ""
         self.height_label.configure(text=f"Model height: {self.height_slider.get():.2f}{ref}")
+        self._sync_entry(self.height_slider)
+
+    def _value_entry(self, parent, row, slider, apply, fmt="{:.3f}"):
+        """A box next to a slider to type the exact value (Enter or leaving the box applies it)."""
+        if not hasattr(self, "_entries"):
+            self._entries = {}
+        var = ctk.StringVar(value=fmt.format(slider.get()))
+        entry = ctk.CTkEntry(parent, width=64, height=22, textvariable=var, justify="right", font=ctk.CTkFont(size=11))
+        entry.grid(row=row, column=1, sticky="e", padx=(6, 0))
+
+        def commit(_event=None):
+            try:
+                value = float(var.get().replace(",", "."))
+            except ValueError:
+                var.set(fmt.format(slider.get()))
+                return
+            low, high = sorted((slider._from_, slider._to))
+            value = min(max(value, low), high)
+            slider.set(value)
+            var.set(fmt.format(value))
+            apply(value)
+        entry.bind("<Return>", commit)
+        entry.bind("<FocusOut>", commit)
+        self._entries[slider] = (var, fmt, commit)
+
+    def _sync_entry(self, slider):
+        var, fmt, _ = getattr(self, "_entries", {}).get(slider, (None, None, None))
+        if var is not None:
+            var.set(fmt.format(slider.get()))
 
     # ---------------------------------------------------------------- bases
     def _base_label(self, entry) -> str:
@@ -807,7 +1281,6 @@ class MainWindow(ctk.CTk):
             self._set_busy(False)
             if error:
                 self.base_info.configure(text=f"Could not load {entry.display_name}: {error[0]}", text_color=RED)
-                print(error[1])
                 return
             base, parts = result
             self.base = base
@@ -817,8 +1290,10 @@ class MainWindow(ctk.CTk):
             self._highlight_base()
             self.renderer.set_ghost(parts)
             self.renderer.show_ghost = self.ghost_var.get()
-            self.renderer.set_base_skeleton(base_skeleton_segments(base.joints), base_joint_points(base.joints))
-            game_dir = Path(self.game_entry.get().strip()) if hasattr(self, "game_entry") and self.game_entry.get() else None
+            if self.model and self.model.match > 0:
+                self.model.match_target = self._base_brightness()
+                self.on_look(self.look_slider.get())
+            self._show_base_rest(self.pose == "tpose" and self._model_shown_in_tpose())
             self._refresh_moveset_clips()
             self._update_abilities_summary()
             skeleton = base.skeleton
@@ -853,29 +1328,590 @@ class MainWindow(ctk.CTk):
         self._run(job, done)
 
     # -------------------------------------------------------------- model
+    def on_preview_texture(self):
+        """Show the texture the game will receive (after atlas packing, with the filters), updated live."""
+        if not self.model:
+            self.model_info.configure(text="Import a model first.", text_color=YELLOW)
+            return
+        atlas = getattr(self, "_atlas", None)
+        if atlas and atlas["window"].winfo_exists():
+            atlas["window"].lift()
+            self._refresh_atlas()
+            return
+        window = ctk.CTkToplevel(self)
+        window.title("Texture atlas")
+        window.geometry("700x820")
+        label = ctk.CTkLabel(window, text="")
+        label.pack(padx=12, pady=(12, 4))
+        original = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(window, text="Show the original (before the filters)", variable=original,
+                        command=self._refresh_atlas, font=ctk.CTkFont(size=11)).pack(padx=12, anchor="w")
+        notes = ctk.CTkLabel(window, text="", wraplength=650, justify="left")
+        notes.pack(padx=12, pady=(4, 8))
+        self._atlas = {"window": window, "label": label, "notes": notes, "original": original}
+        self._refresh_atlas()
+        window.after(100, window.lift)
+
+    def _refresh_atlas(self):
+        """Redraw the atlas window (if open) with the texture currently on the model, plus sanity checks."""
+        atlas = getattr(self, "_atlas", None)
+        if not atlas or not self.model or not atlas["window"].winfo_exists():
+            return
+        if atlas["original"].get():
+            image = self.model.source.texture.convert("RGB")
+        else:
+            image = self._view_texture().convert("RGB")
+        source = self.model.source.texture
+        mask = self.model.coverage()
+        if mask.shape != (image.height, image.width):
+            mask = np.asarray(Image.fromarray(mask).resize(image.size, Image.NEAREST))
+        luminance = np.asarray(image, dtype=np.float32) @ np.array([0.299, 0.587, 0.114], np.float32)
+        used = luminance[mask] if mask.any() else luminance.ravel()
+        dark = float((used < 12).mean())
+        notes = [f"{source.width}×{source.height} px, {100 * mask.mean():.0f}% of the atlas used by the model. "
+                 f"Used part: average brightness {used.mean():.0f}/255, {dark * 100:.0f}% almost black."]
+        if dark > 0.6 or used.mean() < 25:
+            notes.append("⚠ Mostly black: the model probably had no colour texture (or it was lost on import). "
+                         "It will look black in game too.")
+        if source.width != source.height:
+            notes.append("Not square: the game packs it to a power of two.")
+        shown = image.copy()
+        shown.thumbnail((660, 660))
+        picture = ctk.CTkImage(light_image=shown, dark_image=shown, size=shown.size)
+        atlas["label"].configure(image=picture)
+        atlas["label"].image = picture
+        atlas["notes"].configure(text="\n".join(notes),
+                                 text_color=RED if len(notes) > 1 and notes[1].startswith("⚠") else GREY)
+
+    def _make_icon(self):
+        """The game's character pictures, taken from the model as it will be in game: the head and shoulders (front
+        view) and the whole figure, in the in-game rest pose once rigged, with the current texture."""
+        from src.core import icon
+        if not (self.model and self.props):
+            return None
+        tpose = self.rig.tpose if self.rig else self.model.vertices()
+        figure = self.rig.baked if self.rig else None
+        restore = self.rig.posed(self.pose, float(self.pose_amount.get())) if self.rig and self.pose != "tpose" else None
+        try:
+            shot = figure if figure is not None else tpose  # arms down when rigged: shoulders as in game
+            self.renderer.update_model_vertices(shot)
+            center, radius = icon.portrait_sphere(np.asarray(shot), self.props.neck_y, self.props.height)
+            head = self.renderer.render_icon(center, radius, 256)
+            body = None
+            if figure is not None:
+                center, radius = icon.body_sphere(np.asarray(figure))
+                body = self.renderer.render_icon(center, radius, 1024, yaw=-20.0)
+        finally:
+            if self.rig:
+                self.renderer.update_model_vertices(restore if restore is not None else self.rig.tpose)
+            else:
+                self.renderer.update_model_vertices(self._display_vertices())
+        return icon.build_pictures(head, body)
+
+    def on_preview_icon(self):
+        pictures = self._make_icon()
+        if pictures is None:
+            self.model_info.configure(text="Import a model first.", text_color=YELLOW)
+            return
+        window = ctk.CTkToplevel(self)
+        window.title("Character icons")
+        row = ctk.CTkFrame(window, fg_color="#3f3f46")
+        row.pack(padx=12, pady=12)
+        for key, size in (("hud", 128), ("figure", 256), ("silhouette", 256)):
+            if key not in pictures:
+                continue
+            shown = ctk.CTkImage(light_image=pictures[key], dark_image=pictures[key], size=(size, size))
+            label = ctk.CTkLabel(row, image=shown, text="")
+            label.image = shown
+            label.pack(side="left", padx=6, pady=6)
+        text = ("HUD portrait, Virtual Reader figure and its locked silhouette, as installed in the game."
+                if "figure" in pictures else "HUD portrait. Build the rig to also get the Virtual Reader figure.")
+        ctk.CTkLabel(window, text=text + " Move the model (placement) or the height if the head is cut off.",
+                     wraplength=640, justify="left", text_color=GREY).pack(padx=12, pady=(0, 12))
+        window.after(100, window.lift)
+
+    def _model_pieces(self):
+        """Connected-piece label of every vertex of the imported model (cached per model)."""
+        if self._piece_labels is None and self.model:
+            from scipy.sparse import coo_matrix
+            from scipy.sparse.csgraph import connected_components
+            positions = self.model.vertices()
+            # UV seams duplicate vertices: weld by position first, or every seam would cut a piece in two.
+            _, weld = np.unique(np.round(positions * 1e5).astype(np.int64), axis=0, return_inverse=True)
+            weld = weld.reshape(-1)
+            f, n = weld[self.model.faces], int(weld.max()) + 1
+            graph = coo_matrix((np.ones(len(f) * 2), (np.r_[f[:, 0], f[:, 1]], np.r_[f[:, 1], f[:, 2]])), shape=(n, n))
+            self._piece_labels = connected_components(graph, directed=False)[1][weld]
+        return self._piece_labels
+
+    def on_pick_piece(self, event):
+        if not self.model:
+            return
+        index = self.renderer.pick_vertex(event.x, event.y)
+        if index is None:
+            self._selected_pieces = set()
+        else:
+            self._selected_pieces = {int(self._model_pieces()[index])}
+        self._show_piece_selection()
+
+    # ------------------------------------------------------------ accessories
+    def _selection_mask(self):
+        """Vertices selected by piece and/or by the accessory finder."""
+        if not self.model:
+            return None
+        mask = np.zeros(len(self.model.source.vertices), bool)
+        if self._selected_pieces:
+            mask |= np.isin(self._model_pieces(), list(self._selected_pieces))
+        if self._zone_mask is not None:
+            mask |= self._zone_mask
+        return mask if mask.any() else None
+
+    def _on_look_drag(self, value):
+        self._schedule_texture_preview()
+        self._sync_entry(self.look_slider)
+        self.look_label.configure(text=f"Game look (texture filter): {float(value):.2f}. Softens baked shading and "
+                                       "noise, lifts shadows, boosts colours like the base characters. 0 = original.")
+
+    def _on_match_drag(self, value):
+        self._schedule_texture_preview()
+        self._sync_entry(self.match_slider)
+        self.match_label.configure(text=f"Match the base figure's brightness: {float(value):.2f} "
+                                        "(0 = off, 1 = same average brightness as the base texture).")
+
+    def _base_brightness(self):
+        from src.core.gamelook import base_luma
+        parts = getattr(self, "base_parts", None) or []
+        cached = getattr(self, "_base_luma_cache", None)
+        if cached and cached[0] is parts:
+            return cached[1]
+        seen, images = set(), []
+        for part in parts:
+            tex = part[3]
+            if tex is not None and id(tex) not in seen:
+                seen.add(id(tex))
+                images.append(tex)
+        value = base_luma(images)
+        self._base_luma_cache = (parts, value)
+        return value
+
+    def _view_texture(self):
+        """Texture for the viewport without blocking: the last filtered one, else the original until it is ready."""
+        return getattr(self, "_shown_texture", None) or self.model.source.texture
+
+    def _sync_filter_settings(self):
+        """Copy the two texture sliders onto the model (the texture is recomputed from them)."""
+        self.model.look = float(self.look_slider.get())
+        self.model.match = float(self.match_slider.get())
+        self.model.match_target = self._base_brightness()
+
+    def _schedule_texture_preview(self):
+        """While a texture slider moves: a quick 512 px version on the model and in the atlas, at most every 80 ms."""
+        if not getattr(self, "model", None):
+            return
+        if getattr(self, "_tex_job", None):
+            self.after_cancel(self._tex_job)
+        self._tex_job = self.after(80, lambda: self._update_texture(full=False))
+
+    def _update_texture(self, full: bool):
+        """Recompute the filtered texture in the background; only the latest request is shown."""
+        self._tex_job = None
+        if not self.model:
+            return
+        self._sync_filter_settings()
+        self._tex_generation = getattr(self, "_tex_generation", 0) + 1
+        generation, model = self._tex_generation, self.model
+
+        def work():
+            try:
+                image = model.texture if full else model.texture_preview(512)
+            except (OSError, ValueError, RuntimeError) as exc:
+                errorlog.info(traceback.format_exc())
+                self._events.put(lambda exc=exc: self.log(f"Texture filter failed: {exc}"))
+                return
+            self._events.put(lambda: self._show_texture(image, generation, full))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _show_texture(self, image, generation, full):
+        if generation != getattr(self, "_tex_generation", 0) or self.model is None:
+            return  # a newer slider position is on its way
+        self._shown_texture = image
+        self.renderer.set_model_texture(image)
+        self.renderer.request_render()
+        self._refresh_atlas()
+        if full:
+            look, match = self.model.look, self.model.match
+            self.log(f"Texture updated (game look {look:.2f}, brightness match {match:.2f})."
+                     if look > 0 or match > 0 else "Texture filters off: original texture.")
+
+    def on_match(self, value):
+        value = float(value)
+        self._on_match_drag(value)
+        self.settings.update(match_brightness=value)
+        if not self.model:
+            return
+        if value > 0 and self._base_brightness() is None:
+            self.log("Pick a base first: its texture gives the target brightness.")
+        self._commit_texture()
+
+    def on_look(self, value):
+        """Apply the game-look filter to the texture shown and exported."""
+        value = float(value)
+        self._on_look_drag(value)
+        self.settings.update(game_look=value)
+        if self.model:
+            self._commit_texture()
+
+    def _commit_texture(self):
+        """Slider released or value typed: the full-resolution texture (the one exported), in the background."""
+        if getattr(self, "_tex_job", None):
+            self.after_cancel(self._tex_job)
+            self._tex_job = None
+        self._update_texture(full=True)
+
+    def on_acc_limit(self, value, detect=True):
+        self.acc_limit_label.configure(text=f"Depth behind the body to count as accessory: {float(value):.2f} × height")
+        if detect and self.model and self._zone_mask is not None:
+            self.on_acc_find()
+
+    def on_acc_find(self):
+        if not self.model:
+            self.acc_label.configure(text="Import a model first.")
+            return
+        findings = detect(self.model.vertices(), self._model_pieces(), float(self.acc_limit.get()))
+        self._zone_mask = np.logical_or.reduce([f.mask for f in findings]) if findings else None
+        self.acc_label.configure(text="\n".join(f"• {f.text}" for f in findings) if findings else
+                                 "Nothing found at this depth: lower the limit to catch less deep parts.")
+        self._show_piece_selection()
+
+    def _apply_accessories(self, kind):
+        mask = self._selection_mask()
+        if mask is None or not self.model:
+            return
+        attr = "ignored" if kind == "ignore" else "removed"
+        old = getattr(self.model, attr)
+        setattr(self.model, attr, mask if old is None else (old | mask))
+        self._selected_pieces, self._zone_mask = set(), None
+        self.acc_label.configure(text="")
+        self._refresh_accessory_list()
+        if kind == "remove":
+            self.piece_overrides = []
+            self._refresh_piece_list()
+            self.renderer.set_model(self._display_vertices(), self.model.faces, self.model.uvs, self._view_texture())
+        self._show_piece_selection()
+        self._refit()
+        self.log(f"{int(mask.sum())} vertices {'ignored for the measurements and following the torso' if kind == 'ignore' else 'removed from the model'}. Build the rig again to apply it.")
+
+    def on_acc_ignore(self):
+        self._apply_accessories("ignore")
+
+    def on_acc_remove(self):
+        self._apply_accessories("remove")
+
+    def on_acc_clear(self):
+        self._selected_pieces, self._zone_mask = set(), None
+        self.acc_label.configure(text="")
+        self._show_piece_selection()
+
+    def _restore_accessories(self, attr):
+        setattr(self.model, attr, None)
+        self.renderer.set_model(self._display_vertices(), self.model.faces, self.model.uvs, self._view_texture())
+        self._refresh_accessory_list()
+        self._refit()
+
+    def _refresh_accessory_list(self):
+        for child in self.acc_list.winfo_children():
+            child.destroy()
+        if not self.model:
+            return
+        row = 0
+        for attr, title in (("ignored", "ignored (follow the torso)"), ("removed", "removed")):
+            mask = getattr(self.model, attr)
+            if mask is not None and mask.any():
+                ctk.CTkLabel(self.acc_list, text=f"• {int(mask.sum())} vertices {title}", font=ctk.CTkFont(size=11),
+                             anchor="w").grid(row=row, column=0, sticky="w")
+                ctk.CTkButton(self.acc_list, text="✕", width=26, height=22, fg_color="#27272a", hover_color="#3f3f46",
+                              command=lambda a=attr: self._restore_accessories(a)).grid(row=row, column=1, padx=2)
+                row += 1
+
+    def on_piece_grow(self):
+        """Add the small loose pieces that touch the selection (hair strips, cloth cards, jewels...)."""
+        if not self._selected_pieces or not self.model:
+            return
+        from scipy.spatial import cKDTree
+        labels, positions = self._model_pieces(), self.model.vertices()
+        sizes = np.bincount(labels)
+        reach = 0.03 * float(np.ptp(positions[:, 1]))
+        chosen = np.isin(labels, list(self._selected_pieces))
+        near = cKDTree(positions[chosen]).query(positions, distance_upper_bound=reach)[0] < reach
+        for label in np.unique(labels[near & ~chosen]):
+            if sizes[label] <= GROW_MAX_PIECE:
+                self._selected_pieces.add(int(label))
+        self._show_piece_selection()
+
+    def _show_piece_selection(self):
+        mask = self._selection_mask()
+        has_pieces = bool(self._selected_pieces)
+        for key in ("ignore", "remove", "clear"):
+            self.acc_buttons[key].configure(state="normal" if mask is not None else "disabled")
+        if mask is None:
+            self.piece_label.configure(text="No piece selected.")
+            self.piece_apply.configure(state="disabled")
+            self.piece_grow.configure(state="disabled")
+            self.renderer.set_select_lines(None)
+            self.renderer.request_render()
+            return
+        faces = self.model.faces[mask[self.model.faces].all(axis=1)]
+        edges = np.unique(np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1), axis=0)
+        self.piece_label.configure(text=f"Selected: {int(mask.sum())} vertices (magenta in the view)"
+                                        + (f", {len(self._selected_pieces)} piece(s)" if has_pieces else ""))
+        self.piece_apply.configure(state="normal" if has_pieces else "disabled")
+        self.piece_grow.configure(state="normal" if has_pieces else "disabled")
+        self.renderer.set_select_lines(self._display_vertices()[edges].reshape(-1, 3))
+        self.renderer.request_render()
+
+    def on_piece_apply(self):
+        if not self._selected_pieces or not self.model:
+            return
+        labels = self._model_pieces()
+        bone = PIECE_BONES[self.piece_bone.get()]
+        reps = tuple(int(np.nonzero(labels == lab)[0][0]) for lab in sorted(self._selected_pieces))
+        taken = set(self._selected_pieces)
+        # A piece can only follow one bone: drop it from older locks.
+        updated = []
+        for idxs, b in self.piece_overrides:
+            keep = tuple(i for i in idxs if int(labels[i]) not in taken)
+            if keep:
+                updated.append((keep, b))
+        updated.append((reps, bone))
+        self.piece_overrides = updated
+        self._refresh_piece_list()
+        self._geometry_changed()  # the rig is stale until rebuilt
+        self.log(f"{len(reps)} piece(s) locked to {self.piece_bone.get()}. Build the rig again to apply it.")
+
+    def _refresh_piece_list(self):
+        for child in self.piece_list.winfo_children():
+            child.destroy()
+        names = {v: k for k, v in PIECE_BONES.items()}
+        labels = self._model_pieces() if self.model else None
+        for row, (indices, bone) in enumerate(self.piece_overrides):
+            size = int(np.isin(labels, [labels[i] for i in indices]).sum()) if labels is not None else 0
+            ctk.CTkLabel(self.piece_list, text=f"• {len(indices)} piece(s), {size} vertices → {names.get(bone, bone)}",
+                         font=ctk.CTkFont(size=11), anchor="w").grid(row=row, column=0, sticky="w")
+            ctk.CTkButton(self.piece_list, text="✕", width=26, height=22, fg_color="#27272a", hover_color="#3f3f46",
+                          command=lambda r=row: self._remove_piece_override(r)).grid(row=row, column=1, padx=2)
+
+    def _remove_piece_override(self, row):
+        if 0 <= row < len(self.piece_overrides):
+            del self.piece_overrides[row]
+            self._refresh_piece_list()
+            self._geometry_changed()
+
+    def on_suggest_bases(self, more: bool = False):
+        """Compare every figure with the imported model; the best ones get the full rig test, `more` tests the next
+        batch (the moveset comes with the figure, so the whole roster stays pickable)."""
+        if self.busy:
+            return
+        if not self.model:
+            self.base_info.configure(text="Import a model first (tab 1), then ask for suggestions.", text_color=YELLOW)
+            return
+        source, blender = self.model.source, normalize_blender_path(self.blender_entry.get()) if hasattr(self, "blender_entry") else ""
+        previous = {c.actor: c for c in getattr(self, "_candidates", []) if c.tested} if more else {}
+        self.suggest_button.configure(state="disabled", text="Testing the figures… (1 to 2 minutes)")
+        transfer = self._weight_transfer()
+        fingers = bool(self.fingers_var.get())
+        ignored, removed = self.model.ignored, self.model.removed
+
+        def job():
+            return rank_bases(source, load_roster(), WORK_DIR / "rank", lambda text: self._events.put(
+                lambda: self.suggest_button.configure(text=text)),
+                blender=Path(blender) if blender else None, weight_transfer=transfer, skip=set(previous),
+                fingers=fingers, ignored=ignored, removed=removed)
+
+        def done(result, error):
+            self._set_busy(False)
+            self.suggest_button.configure(state="normal", text="Suggest the best bases for my model")
+            if error:
+                self._failed(error)
+                return
+            tested = sorted([c for c in result if c.tested] + list(previous.values()),
+                            key=lambda c: (-c.score, c.distortion))
+            self._candidates = tested + [c for c in result if not c.tested]
+            self._show_candidates()
+        self._run(job, done)
+
+    def _show_candidates(self):
+        """The whole ranked roster in a scrollable list, filterable by name or franchise."""
+        for child in self.suggest_frame.winfo_children():
+            child.destroy()
+        candidates = getattr(self, "_candidates", [])
+        if not candidates:
+            return
+        self.suggest_filter = ctk.StringVar()
+        entry = ctk.CTkEntry(self.suggest_frame, textvariable=self.suggest_filter, height=24,
+                             placeholder_text="Filter by name or franchise (Avengers, Star Wars…)")
+        entry.grid(row=0, column=0, sticky="ew", pady=(0, 2))
+        entry.bind("<KeyRelease>", lambda _e: self._fill_candidates())
+        self.suggest_list = ctk.CTkScrollableFrame(self.suggest_frame, height=230, fg_color="transparent")
+        self.suggest_list.grid(row=1, column=0, sticky="ew")
+        self.suggest_list.grid_columnconfigure(0, weight=1)
+        self.suggest_more = ctk.CTkButton(self.suggest_frame, height=24, fg_color="#27272a",
+                                          text="Test the next 12 figures on this model",
+                                          command=lambda: self.on_suggest_bases(more=True))
+        self.suggest_more.grid(row=2, column=0, sticky="ew", pady=2)
+        ctk.CTkLabel(self.suggest_frame, text="Tested figures: score = body shape match, little stretching in 6 test "
+                                              "poses (shoulders, elbows, torso), little distortion when baking your "
+                                              "T-pose. Untested ones are ranked by silhouette only. The moveset comes "
+                                              "with the figure: check the comparison view.", text_color=GREY,
+                     wraplength=330, justify="left", font=ctk.CTkFont(size=10)).grid(row=3, column=0, sticky="w")
+        self._fill_candidates()
+
+    def _fill_candidates(self):
+        for child in self.suggest_list.winfo_children():
+            child.destroy()
+        needle = self.suggest_filter.get().strip().lower()
+        shown = 0
+        for i, c in enumerate(self._candidates, 1):
+            if needle and needle not in c.display_name.lower() and needle not in c.franchise.lower():
+                continue
+            colour = {"good": GREEN, "warn": YELLOW, "bad": RED}[c.level] if c.tested else GREY
+            franchise = f" [{c.franchise}]" if c.franchise else ""
+            ctk.CTkButton(self.suggest_list, anchor="w", height=24, fg_color="#18181b", hover_color="#27272a",
+                          text=f"{i}. {c.display_name}{franchise} — {c.score}/100  ({c.note})", text_color=colour,
+                          command=lambda a=c.actor: self.on_pick_base(a)).grid(row=shown, column=0, sticky="ew", pady=1)
+            shown += 1
+            if shown >= 120:
+                break
+
+    def _weight_transfer(self) -> bool:
+        """True when the robust weight transfer option is on and usable (the reason is logged otherwise)."""
+        if not self.transfer_var.get():
+            return False
+        from src.core.weight_transfer import availability
+
+        ok, message = availability()
+        if not ok:
+            self.log(f"Robust weight transfer skipped: {message}")
+        return ok
+
+    def _triangle_budget(self) -> int:
+        value = getattr(self, "budget_var", None)
+        text = value.get() if value is not None else "No limit"
+        return int(text) if text.isdigit() else 0
+
     def on_import(self):
         if self.base is None:
             self.model_info.configure(text="Pick a base figure first (tab 0).", text_color=RED)
             return
         path = filedialog.askopenfilename(
             title="Import a 3D model or a ZIP archive",
-            filetypes=[("3D models and ZIP", "*.zip *.obj *.glb *.gltf *.dae *.ply *.stl *.off"), ("All", "*.*")])
+            filetypes=[("3D models and ZIP", "*.zip *.obj *.glb *.gltf *.fbx *.dae *.ply *.stl *.off"), ("All", "*.*")])
         if not path:
             return
+        shown = path
+        if Path(path).suffix.lower() == ".zip":
+            path = self._pick_from_archive(path)
+            if not path:
+                return
+        blender = normalize_blender_path(self.blender_entry.get()) if hasattr(self, "blender_entry") else ""
+        if Path(path).suffix.lower() in NEEDS_BLENDER or self.clean_var.get():
+            if not blender or not Path(blender).is_file():
+                if Path(path).suffix.lower() in NEEDS_BLENDER:
+                    self.model_info.configure(text="This format needs Blender: set blender.exe in the Rig & Export "
+                                                   "tab.", text_color=RED)
+                    return
+                errorlog.info(f"import without cleaning: blender path {blender!r} is not a file")
+                self._finish_import(path, shown, [f"NOT cleaned: blender.exe not found ('{blender or 'empty'}'). "
+                                                  "Set it in the Rig & Export tab, then import again."])
+                return
+            self.model_info.configure(text=f"Cleaning {Path(shown).name} with Blender...", text_color=YELLOW)
+
+            def done(result, error):
+                self._set_busy(False)
+                if error:
+                    self.model_info.configure(text=f"Cleaning failed: {error[0]}", text_color=RED)
+                    return
+                self._finish_import(str(result[0]), shown, result[1])
+            self._run(lambda: clean_model(path, blender, max_triangles=self._triangle_budget()), done)
+            return
+        self._finish_import(path, shown, [])
+
+    def _pick_from_archive(self, path: str) -> str | None:
+        """The model file to use inside a .zip: the likeliest one directly, or the user's pick when the archive holds
+        several (variants, side parts, low-poly copies)."""
         try:
-            source = load_source(path)
+            folder, ranked = extract_archive(Path(path))
+        except (zipfile.BadZipFile, OSError, ValueError) as e:
+            self.model_info.configure(text=f"Could not open {Path(path).name}: {e}", text_color=RED)
+            return None
+        if not ranked:
+            self.model_info.configure(text=f"No 3D model in {Path(path).name}.", text_color=RED)
+            return None
+        if len(ranked) == 1:
+            return str(ranked[0])
+        window = ctk.CTkToplevel(self)
+        window.title("Several models in this archive")
+        window.geometry("520x420")
+        window.transient(self)
+        ctk.CTkLabel(window, text=f"{Path(path).name} holds {len(ranked)} models. Which one is the character?\n"
+                                  "The first one is the Creator's guess.", wraplength=480, justify="left").pack(
+            padx=12, pady=(12, 6), anchor="w")
+        frame = ctk.CTkScrollableFrame(window)
+        frame.pack(fill="both", expand=True, padx=12)
+        choice = ctk.StringVar(value=str(ranked[0]))
+        for f in ranked[:30]:
+            size = f.stat().st_size / 1e6
+            ctk.CTkRadioButton(frame, text=f"{f.relative_to(folder)}  ({size:.1f} MB)", variable=choice,
+                               value=str(f)).pack(anchor="w", pady=2)
+        picked = {"path": None}
+
+        def ok():
+            picked["path"] = choice.get()
+            window.destroy()
+        buttons = ctk.CTkFrame(window, fg_color="transparent")
+        buttons.pack(fill="x", padx=12, pady=10)
+        ctk.CTkButton(buttons, text="Import", command=ok).pack(side="right")
+        ctk.CTkButton(buttons, text="Cancel", fg_color="#27272a", hover_color="#3f3f46",
+                      command=window.destroy).pack(side="right", padx=6)
+        window.after(100, window.lift)
+        window.grab_set()
+        self.wait_window(window)
+        return picked["path"]
+
+    def _finish_import(self, load_path, shown_path, notes):
+        path = shown_path
+        try:
+            source = load_source(load_path)
         except Exception as exc:
             self.model_info.configure(text=f"Error: {exc}", text_color=RED)
             return
+        source.report = list(notes) + list(source.report)
         placement = auto_placement(source, self.height_slider.get())
-        self.model = CharacterModel(source, placement)
+        self.model = CharacterModel(source, placement, look=float(self.look_slider.get()),
+                               match=float(self.match_slider.get()), match_target=self._base_brightness())
+        for key, (slider, label, text) in self.limb_sliders.items():  # a new model starts as modelled
+            slider.set(0.0 if key == "v_shape" else 1.0)
+            label.configure(text=f"{text}: 0.00" if key == "v_shape" else f"{text}: ×1.00")
+            self._sync_entry(slider)
+        self.limb_hint.configure(text="")
         self.model_info.configure(
             text=f"{Path(path).name}\n{len(source.vertices)} vertices, {len(source.faces)} triangles, "
                  f"texture {source.texture.width}×{source.texture.height}\n"
                  f"Auto orientation: {placement.quarter_turns % 4 * 90}°"
-                 f"{', stood up (Z-up file)' if placement.upright_fix else ''}",
-            text_color=GREEN)
-        self.renderer.set_model(self.model.vertices(), self.model.faces, self.model.uvs, self.model.texture)
+                 f"{', stood up (Z-up file)' if placement.upright_fix else ''}"
+                 f"{', flipped' if placement.upside_down else ''}"
+                 + ("".join(f"\n⚠ {line}" for line in source.report[:6]) if source.report else ""),
+            text_color=YELLOW if source.report else GREEN)
+        self._shown_texture = None
+        self.renderer.set_model(self._display_vertices(), self.model.faces, self.model.uvs, self._view_texture())
+        if self.model.look > 0 or self.model.match > 0:
+            self._commit_texture()
+        self.piece_overrides, self._piece_labels, self._selected_pieces = [], None, set()
+        self._zone_mask = None
+        self.acc_label.configure(text="")
+        self._refresh_accessory_list()
+        self._refresh_piece_list()
+        self._show_piece_selection()
+        self._sync_placement_controls()
         self._refit()
         self.renderer.frame_all()
 
@@ -900,18 +1936,55 @@ class MainWindow(ctk.CTk):
             self.log(f"Rig import failed: {exc}")
 
     def _refit(self):
-        self.auto_props, self.fit_report = measure(self.model.vertices(), self.model.faces, self.base)
+        self.auto_props, self.fit_report = measure(self.model.vertices(), self.model.faces, self.base, self.model.measure_mask())
         self.props = self.auto_props
+        self._checked = set()
         summary = self.fit_report.summary()
         if self.base:
-            m_leg = self.props.crotch_y / max(self.props.height, 0.1)
-            b_leg = self.base.joints["Hips"][1] / max(self.base.height, 0.1)
-            if abs(m_leg - b_leg) > 0.20:
-                summary += f"\n⚠️ Morphological Mismatch: {self.base.display_name} has {int(b_leg*100)}% legs vs {int(m_leg*100)}% for your model. For a cartoon character, prefer Donald Duck, Stitch, or Syndrome."
+            for line in fit_advice(self.props, self.base):
+                summary += f"\n⚠️ {line}"
         self.fit_label.configure(text=summary,
                                  text_color=YELLOW if (self.fit_report.estimated or "⚠️" in summary) else GREEN)
         self._sync_sliders()
         self._geometry_changed()
+
+    def _update_status_icons(self):
+        """One small icon per skeleton slider: ✓ found on the mesh, ⚠ guessed or far from the base figure, ✎ yours."""
+        issues = {}
+        if self.props and self.base:
+            for names, text in fit_issues(self.props, self.base):
+                for n in names:
+                    issues[n] = text
+        flagged = self._flagged_sliders()
+        for name, icon in self._status_icons.items():
+            if not self.props:
+                icon.configure(text="")
+                self._status_text[name] = ""
+            elif name in getattr(self, "_checked", set()):
+                if name in issues:
+                    icon.configure(text="✎", text_color="#60a5fa")
+                    self._status_text[name] = f"Adjusted by you, but still: {issues[name]}"
+                else:
+                    icon.configure(text="✓", text_color=GREEN)
+                    self._status_text[name] = "Adjusted by you: now matches the base figure's proportions."
+            elif name in flagged:
+                icon.configure(text="⚠", text_color=YELLOW)
+                self._status_text[name] = "Guessed by the auto-fit, not found on the mesh: check it against the model."
+            elif name in issues:
+                icon.configure(text="⚠", text_color="#fb923c")
+                self._status_text[name] = issues[name]
+            else:
+                icon.configure(text="✓", text_color=GREEN)
+                self._status_text[name] = "Found on the mesh, close to the base figure's proportions."
+
+    def _flagged_sliders(self) -> set:
+        """Sliders whose value the auto-fit only guessed, until the user has touched them."""
+        flagged = set()
+        for item in (self.fit_report.estimated if self.fit_report else []):
+            for key, names in ESTIMATE_SLIDERS.items():
+                if item.startswith(key):
+                    flagged.update(names)
+        return flagged - getattr(self, "_checked", set())
 
     def _sync_sliders(self):
         h = self.props.height
@@ -923,7 +1996,11 @@ class MainWindow(ctk.CTk):
                 slider.configure(from_=lo, to=hi, state="normal")
             value = getattr(self.props, name)
             slider.set(value)
-            label.configure(text=f"{text}: {value:.2f}")
+            flagged = name in self._flagged_sliders()
+            label.configure(text=f"{text}: {value:.2f}" + ("  ⚠ check" if flagged else ""),
+                            text_color=YELLOW if flagged else "#e4e4e7")
+            self._sync_entry(slider)
+        self._update_status_icons()
 
     def _geometry_changed(self):
         """Placement, joints or base changed: the rig is stale, redraw the T-pose model and its skeleton."""
@@ -932,20 +2009,69 @@ class MainWindow(ctk.CTk):
         self.rig = None
         if hasattr(self, "timeline"):
             self.timeline.set_rig_ready(False)
-        if hasattr(self, "base_parts") and self.base_parts:
-            self.renderer.reset_ghost_vertices(self.base_parts)
         self.pose = "tpose"
+        self._show_base_rest(self._model_shown_in_tpose())
         self.pose_buttons.set("T-pose")
         self.pose_buttons.configure(state="disabled")
+        self.renderer.set_heat_lines(None)
+        self.quality_label.configure(text="Deformation: build the rig to measure it.", text_color=GREY)
         self.anchors = build_anchors(self.props, self.base)
         if showing_rig:
-            self.renderer.set_model(self.model.vertices(), self.model.faces, self.model.uvs, self.model.texture)
+            self.renderer.set_model(self._display_vertices(), self.model.faces, self.model.uvs, self._view_texture())
         else:
-            self.renderer.update_model_vertices(self.model.vertices())
-        self.renderer.set_skeleton(skeleton_segments(self.anchors), joint_points(self.anchors))
-        if self.base:
-            self.renderer.set_base_skeleton(base_skeleton_segments(self.base.joints), base_joint_points(self.base.joints))
+            self.renderer.update_model_vertices(self._display_vertices())
+        self._update_skeleton_overlay()
+        self._show_base_rest(self._model_shown_in_tpose())
         self.renderer.request_render()
+
+    def _sync_placement_controls(self):
+        if not self.model:
+            return
+        for key, (slider, label, text, span) in self.place_sliders.items():
+            value = float(getattr(self.model.placement, key))
+            slider.set(max(-span, min(span, value)))
+            label.configure(text=f"{text}: {value:+.2f}")
+            self._sync_entry(slider)
+
+    def on_place_slider(self, key, value):
+        """Slider moved: apply it at once, but re-measure only once the hand stops (measuring is the slow part)."""
+        if not self.model:
+            return
+        setattr(self.model.placement, key, float(value))
+        slider, label, text, _ = self.place_sliders[key]
+        label.configure(text=f"{text}: {float(value):+.2f}")
+        self._sync_entry(slider)
+        if self.rig is not None:  # the view shows the rig's vertex set: go back to the model first
+            self.rig = None
+            self.renderer.set_model(self._display_vertices(), self.model.faces, self.model.uvs, self._view_texture())
+        self.renderer.update_model_vertices(self._display_vertices())
+        self.renderer.request_render()
+        if getattr(self, "_place_job", None):
+            self.after_cancel(self._place_job)
+        self._place_job = self.after(250, self._placement_settled)
+
+    def _placement_settled(self):
+        self._place_job = None
+        if self.model:
+            self._refit()
+
+    def on_nudge(self, key, delta):
+        if not self.model:
+            return
+        placement = self.model.placement
+        setattr(placement, key, round(getattr(placement, key) + delta, 4))
+        self._sync_placement_controls()
+        self._refit()
+
+    def on_recentre(self):
+        """Back to the automatic position and straight orientation (keeps the 90° steps and the height)."""
+        if not self.model:
+            return
+        placement = self.model.placement
+        placement.offset_x = placement.offset_y = placement.offset_z = 0.0
+        placement.yaw_deg = 0.0
+        self._sync_placement_controls()
+        self._refit()
 
     def on_turn(self, quarters):
         if self.model:
@@ -958,6 +2084,13 @@ class MainWindow(ctk.CTk):
             self._refit()
             self.renderer.frame_all()
 
+    def on_flip(self):
+        """Upside down → on its feet (and back)."""
+        if self.model:
+            self.model.placement.upside_down = not self.model.placement.upside_down
+            self._refit()
+            self.renderer.frame_all()
+
     def on_height(self, value):
         self._update_height_label()
         if not self.model:
@@ -966,10 +2099,32 @@ class MainWindow(ctk.CTk):
         self.model.placement.height = value
 
         def scale(props):
-            return props.adjusted(**{k: (v if k in ("wrist", "knee") else v * ratio) for k, v in vars(props).items()})
+            return props.adjusted(**{k: (v if k in ("wrist", "knee", "elbow") else v * ratio) for k, v in vars(props).items()})
         self.props, self.auto_props = scale(self.props), scale(self.auto_props)
         self._sync_sliders()
         self._geometry_changed()
+
+    def _model_shown_in_tpose(self) -> bool:
+        """False while the Skeleton tab previews the game pose (arms down): the comparison figure follows it."""
+        return not (getattr(self, "game_pose_var", None) is not None and self.game_pose_var.get())
+
+    def _show_base_rest(self, tpose: bool):
+        """Comparison figure and its skeleton: raised to T-pose when the model is shown in T-pose (and the option is
+        on), in the native bind pose otherwise."""
+        if not (self.base and getattr(self, "base_parts", None)):
+            return
+        if tpose and self.ghost_tpose_var.get():
+            world, joints = base_tpose(self.base)
+            self.renderer.update_ghost_vertices(self.base.deform_preview_parts(world))
+        else:
+            joints = self.base.joints
+            self.renderer.reset_ghost_vertices(self.base_parts)
+        self.renderer.set_base_skeleton(base_skeleton_segments(joints), base_joint_points(joints))
+
+    def on_ghost_tpose(self):
+        self.settings.update(ghost_tpose=bool(self.ghost_tpose_var.get()))
+        self._show_base_rest(self.pose == "tpose" and self._model_shown_in_tpose())
+        self.renderer.request_render()
 
     def on_ghost(self):
         self.renderer.show_ghost = self.ghost_var.get()
@@ -1018,7 +2173,10 @@ class MainWindow(ctk.CTk):
             changes["tip_y"] = self.props.tip_y + (value - self.props.arm_y)
         self.props = self.props.adjusted(**changes)
         slider, label, text, _ = self.sliders[name]
-        label.configure(text=f"{text}: {value:.2f}")
+        self._checked = getattr(self, "_checked", set()) | {name}
+        label.configure(text=f"{text}: {value:.2f}", text_color="#e4e4e7")
+        self._sync_entry(slider)
+        self._update_status_icons()
         self._geometry_changed()
 
     # --------------------------------------------------------- rig & export
@@ -1026,18 +2184,72 @@ class MainWindow(ctk.CTk):
         if not self.rig:
             return
         self.pose = POSES[choice]
-        self.renderer.update_model_vertices(self.rig.posed(self.pose))
-        if hasattr(self, "base_parts") and self.base_parts:
-            self.renderer.reset_ghost_vertices(self.base_parts)
+        amount = float(self.pose_amount.get())
+        self.renderer.update_model_vertices(self.rig.posed(self.pose, amount))
+        self._show_base_rest(self.pose == "tpose")
         if self.pose == "tpose":
             self.renderer.set_skeleton(skeleton_segments(self.anchors), joint_points(self.anchors))
-            if self.base:
-                self.renderer.set_base_skeleton(base_skeleton_segments(self.base.joints), base_joint_points(self.base.joints))
+        elif self.pose == "bind":  # in-game rest pose: the points follow the model there, the base is in its own
+            from src.core.limbs import posed_anchors
+            posed = posed_anchors(self.anchors, self.rig.base.joints)
+            self.renderer.set_skeleton(skeleton_segments(posed), joint_points(posed))
         else:
             self.renderer.set_skeleton(None, None)
             self.renderer.set_base_skeleton(None, None)
+        self.renderer.set_heat_lines(stretched_segments(self.rig, self.pose, amount))
         self.renderer.request_render()
 
+    def on_pose_amount(self, value):
+        self.pose_amount_label.configure(text=f"Pose amount: {int(round(float(value) * 100))}%")
+        self._sync_entry(self.pose_amount)
+        if not self.rig or self.pose in ("tpose", "bind"):
+            return
+        if getattr(self, "_amount_job", None):
+            self.after_cancel(self._amount_job)
+        self._amount_job = self.after(120, lambda: self.on_pose(self.pose_buttons.get()))
+
+    def on_heat_toggle(self):
+        self.renderer.show_heat = self.heat_var.get()
+        self.renderer.request_render()
+
+    def on_views_toggle(self):
+        self.renderer.multi_view = self.views_var.get()
+        self.renderer.request_render()
+
+    def _on_round_drag(self, value, live=True):
+        self._sync_entry(self.round_slider)
+        self.round_label.configure(text=f"Shoulder roundness: {float(value):.2f} (0 = folded, suits jackets and wide "
+                                        "sleeves; 1 = round, suits bare arms). Live on the built rig.")
+        if live and self.rig is not None:
+            self.rig.set_roundness(float(value))
+            self._refresh_rig_view()
+
+    def on_roundness(self, value):
+        value = float(value)
+        self._on_round_drag(value)
+        self.settings.update(shoulder_roundness=value)
+        if self.rig is not None:
+            self._show_quality()
+
+    def _refresh_rig_view(self):
+        """Redraw the rig in the pose currently shown (after its rest shape changed)."""
+        if self.rig is None:
+            return
+        amount = float(self.pose_amount.get())
+        self.renderer.update_model_vertices(self.rig.posed(self.pose, amount))
+        self.renderer.set_heat_lines(stretched_segments(self.rig, self.pose, amount))
+        self.renderer.request_render()
+
+    def _show_quality(self):
+        """Measure how much the fresh rig stretches in the test poses and show it (and log it)."""
+        try:
+            report = deformation_report(self.rig)
+        except Exception as exc:  # never block the rig on a diagnostic
+            self.quality_label.configure(text=f"Deformation: could not be measured ({exc})", text_color=GREY)
+            return
+        colour = {"good": GREEN, "warn": YELLOW, "bad": RED}[report.level]
+        self.quality_label.configure(text=report.summary(), text_color=colour)
+        self.log(report.summary())
 
     def _run(self, job, done):
         def worker():
@@ -1046,13 +2258,14 @@ class MainWindow(ctk.CTk):
                 self._events.put(lambda: done(result, None))
             except Exception as exc:
                 detail = traceback.format_exc()
-                self._events.put(lambda: done(None, (exc, detail)))
+                errorlog.info(detail)
+                # Python deletes `exc` when the except block ends: bind it now, or the lambda raises NameError later.
+                self._events.put(lambda exc=exc, detail=detail: done(None, (exc, detail)))
         self._set_busy(True)
         threading.Thread(target=worker, daemon=True).start()
 
     def _failed(self, error):
         self.log(f"FAILED: {error[0]}")
-        print(error[1])
 
     def _ready_to_rig(self) -> bool:
         if not self.model:
@@ -1079,19 +2292,26 @@ class MainWindow(ctk.CTk):
                 self.log("The model, skeleton or base changed while the rig was building: build it again.")
                 return
             self.rig = rig
+            rig.set_roundness(float(self.round_slider.get()))
             self.timeline.set_rig_ready(True)
             # The rig has its own vertex set (seams welded, UV splits rebuilt): show that mesh from now on.
-            self.renderer.set_model(rig.tpose, rig.faces, rig.uvs, self.model.texture)
+            self.renderer.set_model(rig.tpose, rig.faces, rig.uvs, self._view_texture())
             self.log(f"Rig ready ({rig.method} weights). Try the “In-game pose”, “Arms up” and “Walk” previews.")
             self.pose_buttons.configure(state="normal")
             self.pose_buttons.set("In-game pose")
             self.on_pose("In-game pose")
+            self._show_quality()
             if then:
                 then()
-        blender = self.blender_entry.get().strip()
+        blender = normalize_blender_path(self.blender_entry.get())
+        self._sync_v_target()
         model, anchors, base = self.model, self.anchors, self.base
+        overrides = list(self.piece_overrides)
+        transfer = self._weight_transfer()
+        fingers = bool(self.fingers_var.get())
+        twist = bool(self.twist_var.get())
         self._run(lambda: build_rig(model, anchors, base, Path(blender) if blender else None,
-                                    WORK_DIR / "rig", self.log), done)
+                                    WORK_DIR / "rig", self.log, overrides, transfer, fingers, twist), done)
 
     def on_install(self):
         if not self._ready_to_rig():
@@ -1161,7 +2381,10 @@ class MainWindow(ctk.CTk):
             else:
                 self.log("Some checks failed: the entity may not show up in game.")
         rig = self.rig
-        texture = self.model.texture
+        model = self.model
         abilities = self.abilities
-        self._run(lambda: install(rig, texture, ident, game_dir, self.log, entity_cfg, abilities=abilities), done)
+        icon = self._make_icon() if self.icon_var.get() else None
+        self._run(lambda: install(rig, model.texture, ident, game_dir, self.log, entity_cfg, abilities=abilities,
+                                    use_legacy_zip=bool(self.zip_var.get()), icon=icon,
+                                    relief=bool(self.relief_var.get())), done)
 

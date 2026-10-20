@@ -1,5 +1,6 @@
 """Write a rigged character into <game>/mods/<slug>/ as a self-contained CrabeLoader mod, then check it."""
 import json
+import subprocess
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,9 +13,8 @@ from src.core.material_bundle import MaterialBundle, character_bundle
 from src.core.mod_writer import Identity, backup_existing, ship_motions_if_needed, write_text_files
 from src.core.octane import build_buffers, clone_bent, clone_dnax, material_count, patch_oct
 from src.core.octane_scene import Scene
-from src.core.paths import WORK_DIR
 from src.core.rig import RigResult
-from src.core.textures import build_texture_archive, choose_texture_ids, export_loose_textures
+from src.core.textures import choose_texture_ids, export_loose_textures
 
 
 @dataclass
@@ -38,14 +38,15 @@ import shutil
 def install(rig: RigResult, texture: Image.Image, ident: Identity, game_dir: Path,
             log: Callable[[str], None], entity_config: EntityConfig | None = None,
             abilities: CharacterAbilities | None = None,
-            use_legacy_zip: bool = False) -> InstallReport:
+            use_legacy_zip: bool = False, icon: dict | None = None, relief: bool = True) -> InstallReport:
     base = rig.base
     game_dir = Path(game_dir)
     if not (game_dir / "assets").is_dir():
         raise FileNotFoundError(f"{game_dir} is not the game folder (no assets subfolder)")
     mod_dir = game_dir / "mods" / ident.slug
 
-    ids = choose_texture_ids(ident.actor, game_dir, ident.slug)
+    from src.core import shared
+    ids = choose_texture_ids(ident.actor, game_dir, ident.slug, shared.SHARED_PREFIX if use_legacy_zip else None)
     log(f"Base: {base.display_name} ({base.actor}, model {base.model}, {len(base.meshes)} mesh(es))")
     if entity_config and not entity_config.is_player:
         log(f"Entity: {entity_config.summary()}")
@@ -103,21 +104,39 @@ def install(rig: RigResult, texture: Image.Image, ident: Identity, game_dir: Pat
 
     log("Model files, manifest and patches written")
 
+    normal = None
+    if relief:
+        from src.core.gamelook import coverage
+        from src.core.normalmap import normal_map
+        normal = normal_map(texture, coverage(rig.uvs, rig.faces, texture.size))
+        log(f"Relief normal map made from the texture ({normal.width}x{normal.height})")
     log("Writing CrabeLoader V2 loose VFS textures (.tbody)...")
-    export_loose_textures(ids, texture, mod_dir)
+    export_loose_textures(ids, texture, mod_dir, normal)
     report.notes.append(f"textures: loose VFS {ids.diffuse}.tbody, {ids.normal}.tbody")
 
+    if icon is not None:
+        from src.core.icon import write_icon
+        written = write_icon(icon, ident.actor, mod_dir)
+        log(f"Character icons written: {len(written) - 1} game files under ui/ + {written[0].name}")
+        report.notes.append("icons: HUD portrait (ui/icons) and Virtual Reader figure (ui/virtualreadercharacters)")
+
     if use_legacy_zip:
-        log("Rebuilding legacy encrypted texture archive (optional fallback)...")
-        tex_zip = mod_dir / "textures" / f"{ids.prefix}.zip"
-        entries = build_texture_archive(ids, texture, game_dir, WORK_DIR / "textures", tex_zip)
-        report.notes.append(f"textures/{ids.prefix}.zip: {entries} entries (vanilla + 2)")
+        # Textures and icons only show from the game's archives: the shared mod rebuilds them for all characters.
+        try:
+            res = shared.rebuild(game_dir, log)
+            report.notes.append(f"shared archives ({shared.SHARED_SLUG}): rebuilt {', '.join(res.built) or 'none'}")
+        except (OSError, subprocess.SubprocessError, ValueError, RuntimeError) as exc:
+            log(f"WARNING shared archives not rebuilt ({exc}). Close the game, then Manage_Mods.bat -> Reconstruire.")
+            report.notes.append("shared archives NOT rebuilt: run Manage_Mods.bat")
 
     note = ship_motions_if_needed(base, game_dir, mod_dir)
     report.notes.append(note)
     log(note)
 
     _verify(report, rig, ident, mod_dir, ids.prefix, n_materials)
+    if use_legacy_zip:
+        archive = game_dir / "mods" / shared.SHARED_SLUG / "textures" / f"{ids.prefix}.zip"
+        report.checks.append((archive.is_file(), f"shared texture archive {shared.SHARED_SLUG}/textures/{archive.name}"))
     return report
 
 
@@ -165,7 +184,6 @@ def _verify(report: InstallReport, rig: RigResult, ident: Identity, mod_dir: Pat
               f".mtb: {n_materials} material(s), matching the .oct"))
     bent = Scene.load(char_dir / f"{ident.lower}.bent")
     c.append((f"characters/{ident.lower}/{ident.lower}.oct" in bent.strings, ".bent points to the clone's model"))
-    manifest = json.loads((mod_dir / "mod.json").read_text(encoding="utf-8"))
     tex_ok = len(list((mod_dir / "textures").glob("*.tbody"))) >= 2 or (mod_dir / f"textures/{prefix}.zip").is_file()
     c.append((tex_ok, "textures verified (.tbody loose VFS / .zip)"))
     for rel in ("skilltrees/ActorList.patch", "skilltrees/DataMap.patch", f"characters/{ident.actor}.lua",

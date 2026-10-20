@@ -20,9 +20,22 @@ def find_blender() -> str:
 
 DEFAULTS = {
     "blender_path": find_blender(),
-    "game_path": r"D:\SteamLibrary\steamapps\common\Disney Infinity 3.0 Gold Edition",
+    "game_path": "",
     "mod_name": "mario",
 }
+
+
+def normalize_blender_path(text: str) -> str:
+    """Forgive typos in the blender.exe path: quotes, a folder instead of the file, a cut-off '.ex'."""
+    text = (text or "").strip().strip('"').strip("'")
+    if not text:
+        return ""
+    path = Path(text)
+    candidates = [path, path / "blender.exe", Path(text + "e"), Path(text + ".exe")]
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return text
 
 
 def load_settings() -> dict:

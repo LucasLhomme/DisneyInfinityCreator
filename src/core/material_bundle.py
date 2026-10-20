@@ -52,7 +52,7 @@ class MaterialBundle:
         if matp is None:
             raise ValueError("no MATP sub-bundle")
         body, count = matp
-        q, strings = 0, []
+        q = 0
 
         def read_strings(q):
             n = struct.unpack_from("<I", body, q)[0]
@@ -76,7 +76,7 @@ class MaterialBundle:
 
     def material_textures(self) -> list[list[str]] | None:
         """Texture ids each material samples, in slot order (diffuse first for the skinned shaders), or None when a
-        shader's layout is unknown (see tools/build_shader_table.py)."""
+        shader's layout is unknown (src/assets/shader_layouts.json)."""
         layouts = _shader_layouts()
         out, p = [], 0
         for sid in self.shader_ids:

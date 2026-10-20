@@ -110,8 +110,8 @@ def read_texture_hashes(mtb: bytes) -> list[str]:
 
 
 class BaseCharacter:
-    """A base figure. The app builds it from Creator's own pack (from_pack); tools/build_base_pack.py builds the
-    pack from a game install (from_game)."""
+    """A base figure. The app builds it from Creator's own pack (from_pack); the pack itself is extracted
+    from the player's game install on first launch (from_game, see game_data.py)."""
 
     def __init__(self, entry: RosterEntry, model_dir: str, model: str, files_dir: Path, dnax_file: Path,
                  animtree_file: tuple[str, Path] | None = None):

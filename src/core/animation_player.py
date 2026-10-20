@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 import math
-import re
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 
 from src.core.base_character import BaseCharacter
-from src.core.blender_rig import AnimationTrack, ParsedRig
+from src.core.blender_rig import AnimationTrack
 from src.core.paths import BMS_SCRIPT, QUICKBMS
 from src.core.rig import RigResult, skin
 from src.core.skeleton import SIDES
@@ -366,13 +365,11 @@ def evaluate_procedural_sprint(base: BaseCharacter, world: np.ndarray, t: float)
             posed[i] = world[i] @ m_lean
 
     leg_amp = math.radians(52.0)
-    knee_amp = math.radians(70.0)
     arm_amp = math.radians(50.0)
 
     for side, sx in SIDES:
         leg_phase = phase if sx > 0 else (phase + math.pi)
         thigh_angle = math.sin(leg_phase) * leg_amp
-        knee_angle = max(0.0, -math.sin(leg_phase)) * knee_amp
 
         thigh_idx = _find_bone(base, "Thigh", side)
         pivot_thigh = world[thigh_idx][3, :3]
@@ -411,13 +408,11 @@ def evaluate_procedural_walk(base: BaseCharacter, world: np.ndarray, t: float) -
     phase = 2.0 * math.pi * freq * t
 
     leg_amp = math.radians(35.0)
-    knee_amp = math.radians(45.0)
     arm_amp = math.radians(30.0)
 
     for side, sx in SIDES:
         leg_phase = phase if sx > 0 else (phase + math.pi)
         thigh_angle = math.sin(leg_phase) * leg_amp
-        knee_angle = max(0.0, -math.sin(leg_phase)) * knee_amp
 
         thigh_idx = _find_bone(base, "Thigh", side)
         pivot_thigh = world[thigh_idx][3, :3]
@@ -675,6 +670,24 @@ BUILTIN_CLIPS = {
 }
 
 
+FINGER_PREFIXES = ("Thumb", "Index", "Middle")
+
+
+def follow_hands(base: BaseCharacter, world: np.ndarray, posed: np.ndarray) -> np.ndarray:
+    """The procedural clips move the hands but not the finger bones: left alone, the fingers stay behind at the bind
+    pose and tear the hands. Each finger bone takes the motion of its hand (no clip curls the fingers)."""
+    out = posed.copy()
+    for i, name in enumerate(base.bone_names):
+        if not name.startswith(FINGER_PREFIXES) or "_" not in name:
+            continue
+        try:
+            hand = base.bone_index("Hand_" + name.rsplit("_", 1)[1])
+        except ValueError:
+            continue
+        out[i] = world[i] @ (np.linalg.inv(world[hand]) @ posed[hand])
+    return out
+
+
 class AnimationPlayer:
     """Controls animation playback, scrubbing, and frame evaluation."""
 
@@ -770,7 +783,7 @@ class AnimationPlayer:
             return world
 
         if self.active_clip.evaluate_world is not None:
-            return self.active_clip.evaluate_world(base, world, self.current_time)
+            return follow_hands(base, world, self.active_clip.evaluate_world(base, world, self.current_time))
 
         if self.active_clip.custom_track is not None:
             bone_poses = self.active_clip.custom_track.sample(self.current_time)

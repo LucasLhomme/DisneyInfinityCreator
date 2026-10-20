@@ -1,6 +1,7 @@
-"""Creator's own copy of every base figure: the app never reads the player's game to preview or rig a base.
+"""Creator's copy of every base figure, extracted once from the player's game (game_data.py): the app then
+previews and rigs bases without reading the game again.
 
-Layout of src/assets/bases/ (written by tools/build_base_pack.py):
+Layout of src/assets/bases/:
   index.json               actor -> model folder/name, animtree path as the .dnax spells it, compatibility status
   <actor>/<model>.oct .mtb .bent _0.vbuf _0.ibuf     the model, as the game ships it
   <actor>/figure.dnax      the figure's .dnax;  <actor>/animtree.animtreeoverrides (when it has one)
@@ -10,7 +11,6 @@ import json
 import shutil
 from dataclasses import asdict, dataclass
 from functools import lru_cache
-from pathlib import Path
 
 from PIL import Image
 
@@ -68,14 +68,14 @@ def load_base(cls, entry: RosterEntry):
 def preview_texture(texture_id: str) -> Image.Image | None:
     path = PACK_DIR / "textures" / f"{texture_id.lower()}.jpg"
     try:
-        img = Image.open(path)
-        img.load()
-        return img
+        with Image.open(path) as img:
+            img.load()
+            return img.copy()
     except (OSError, ValueError):
         return None
 
 
-# ------------------------------------------------------------------ building (tools/build_base_pack.py)
+# ------------------------------------------------------------------ building (game_data.extract)
 def add_to_pack(base, status_row: BaseStatus, load_texture, is_normal_map) -> int:
     """Copy one base (built from a game install) into the pack; returns the bytes written."""
     folder = PACK_DIR / base.actor_lower
