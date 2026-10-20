@@ -275,10 +275,10 @@ def measure(
         estimated.append("legs")
 
     # Ankle: where the foot's front-to-back depth drops to about half of the sole's.
-    def leg_depth(yy):
+    def leg_depth(yy: float) -> tuple[float | None, float | None]:
         p = _sections(mesh, yy)
         p = p[(p[:, 0] > 0) & (np.abs(p[:, 0] - leg_x) < 0.15 * h)] if len(p) else p
-        return (np.ptp(p[:, 2]), (p[:, 2].min() + p[:, 2].max()) / 2) if len(p) >= 3 else (None, None)
+        return (float(np.ptp(p[:, 2])), float((p[:, 2].min() + p[:, 2].max()) / 2)) if len(p) >= 3 else (None, None)
 
     sole_depth, _ = leg_depth(0.02 * h)
     ankle_y, ankle_z = 0.06 * h, knee_z
@@ -327,7 +327,7 @@ def calibrate(p: Proportions) -> Proportions:
     raw = {"shoulder_x": p.shoulder_x / h, "tip_x": p.tip_x / h, "wrist": p.wrist,
            "arm_z": p.arm_z / h, "knee_z": p.knee_z / h, "neck_y": p.neck_y / h}
 
-    def predict(name, current):
+    def predict(name: str, current: float) -> float:
         feats, c, limit = CALIBRATION[name]
         value = c[0] + sum(k * raw[f] for k, f in zip(c[1:], feats))
         return float(np.clip(value, current - limit, current + limit)) * h
@@ -363,7 +363,7 @@ def build_anchors(p: Proportions, base: BaseCharacter) -> dict[str, np.ndarray]:
     joints = base.joints
     lh, ln = joints["Hips"][1], joints["Neck"][1]
 
-    def along_torso(name, x=0.0, z=None):
+    def along_torso(name: str, x: float = 0.0, z: float | None = None) -> np.ndarray:
         t = (joints[name][1] - lh) / (ln - lh)
         q = a["Hips"] + t * (a["Neck"] - a["Hips"])
         q[0] = x

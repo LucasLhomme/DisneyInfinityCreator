@@ -307,14 +307,14 @@ def parse_gltf_rig(file_path: str | Path) -> ParsedRig:
             if chunk_type == b"JSON":
                 try:
                     gltf_data = json.loads(chunk_data.decode("utf-8"))
-                except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+                except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
                     raise RigParsingError(f"Failed to parse GLB JSON chunk: {exc}") from exc
             elif chunk_type == b"BIN\x00":
                 bin_buffers.append(chunk_data)
     elif suffix in (".gltf", ".json"):
         try:
             gltf_data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
             raise RigParsingError(f"Failed to parse glTF JSON: {exc}") from exc
         # Load external buffer if referenced
         for buf in gltf_data.get("buffers", []):
@@ -440,7 +440,7 @@ def parse_gltf_rig(file_path: str | Path) -> ParsedRig:
                 bone_nodes[child_b_idx].parent_name = bone_nodes[b_idx].name
 
     # Compute world matrices (hierarchical)
-    def compute_world(idx: int, parent_m: np.ndarray):
+    def compute_world(idx: int, parent_m: np.ndarray) -> None:
         bone = bone_nodes[idx]
         bone.world_matrix = parent_m @ bone.local_matrix
         for c in bone.children:
@@ -538,7 +538,7 @@ def parse_json_rig(file_path: str | Path) -> ParsedRig:
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+    except (json.JSONDecodeError, OSError) as exc:
         raise RigParsingError(f"Malformed JSON rig file: {exc}") from exc
 
     bones_data = data.get("bones", [])
@@ -573,7 +573,7 @@ def parse_json_rig(file_path: str | Path) -> ParsedRig:
             bone_nodes[p_idx].children.append(i)
 
     # Hierarchical world matrices
-    def compute_world(idx: int, parent_m: np.ndarray):
+    def compute_world(idx: int, parent_m: np.ndarray) -> None:
         bone = bone_nodes[idx]
         bone.world_matrix = parent_m @ bone.local_matrix
         for c in bone.children:
@@ -664,7 +664,7 @@ def load_rig_file(file_path: str | Path) -> ParsedRig:
             head = json.loads(path.read_text(encoding="utf-8"))
             if "asset" in head and "version" in head["asset"]:
                 return parse_gltf_rig(path)
-        except (OSError, json.JSONDecodeError, UnicodeDecodeError, ValueError):
+        except (json.JSONDecodeError, OSError, KeyError):
             pass
         return parse_json_rig(path)
     raise RigParsingError(f"Unsupported file format '{suffix}'. Supported formats: .glb, .gltf, .json, .fbx, .bvh")

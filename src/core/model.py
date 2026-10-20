@@ -1,9 +1,15 @@
 """Loading a downloaded 3D model and placing it the way the engine expects (Y up, facing +Z, feet on the ground)."""
+from __future__ import annotations
+
+import atexit
 import re
 import tempfile
 import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import trimesh
@@ -11,7 +17,6 @@ from PIL import Image
 
 MODEL_EXTENSIONS = (".glb", ".gltf", ".obj", ".dae", ".ply", ".stl", ".off")
 MAX_TEXTURE = 2048
-_extracted_dirs: list[tempfile.TemporaryDirectory] = []
 
 
 @dataclass
@@ -24,7 +29,7 @@ class SourceModel:
     texture: Image.Image
     winding_sign: float
     """+1 when the triangle winding agrees with the file's normals, -1 when it is reversed."""
-    report: list = field(default_factory=list)
+    report: list[str] = field(default_factory=list)
     """Import warnings: materials without a texture (they come out flat grey), tiled UVs, etc."""
 
 
@@ -81,7 +86,7 @@ class CharacterModel:
             faces = faces[~self.removed[faces].any(axis=1)]
         return faces
 
-    def measure_mask(self):
+    def measure_mask(self) -> np.ndarray | None:
         """Vertices the measurements must not see (accessories and removed parts), or None."""
         parts = [m for m in (self.ignored, self.removed) if m is not None and m.any()]
         return np.logical_or.reduce(parts) if parts else None
@@ -134,7 +139,7 @@ def rank_model_files(files: list[Path], root: Path, hint: str = "") -> list[Path
     near the top of the folder tree, then the preferred format and the biggest file."""
     hint_words = {w for w in re.split(r"[^a-z0-9]+", hint.lower()) if len(w) > 2}
 
-    def key(p: Path):
+    def key(p: Path) -> tuple[bool, bool, int, int, int]:
         stem = p.stem.lower()
         words = set(re.split(r"[^a-z0-9]+", stem)) | {w for part in p.relative_to(root).parts[:-1]
                                                        for w in re.split(r"[^a-z0-9]+", part.lower())}
@@ -155,27 +160,49 @@ def pick_model_file(folder: Path, hint: str = "") -> Path | None:
     return ranked[0] if ranked else None
 
 
+@contextmanager
+def extracted_archive(path: Path) -> Iterator[tuple[Path, list[Path]]]:
+    """Unpack a zip archive into a temporary directory, yielding (folder, ranked_model_files).
+    Automatically cleans up the temporary directory on exit.
+    """
+    with tempfile.TemporaryDirectory(prefix="dic_model_") as tmp:
+        folder = Path(tmp)
+        with zipfile.ZipFile(path) as archive:
+            archive.extractall(folder)
+        yield folder, rank_model_files(model_files(folder), folder, path.stem)
+
+
+_last_extracted: tempfile.TemporaryDirectory | None = None
+
+
+def cleanup_extracted() -> None:
+    """Clean up any temporary directory created by `extract_archive`."""
+    global _last_extracted
+    if _last_extracted is not None:
+        _last_extracted.cleanup()
+        _last_extracted = None
+
+
+atexit.register(cleanup_extracted)
+
+
 def extract_archive(path: Path) -> tuple[Path, list[Path]]:
-    """Unzip an archive into a temporary folder (kept until the app closes): (folder, model files, best first)."""
+    """Unzip an archive into a temporary folder: (folder, model files, best first).
+
+    Kept for backwards compatibility. For context-managed extraction, prefer
+    `extracted_archive()`. Cleans up any previously extracted archive before creating a new one.
+    """
+    global _last_extracted
+    cleanup_extracted()
     tmp = tempfile.TemporaryDirectory(prefix="dic_model_")
-    _extracted_dirs.append(tmp)
+    _last_extracted = tmp
     with zipfile.ZipFile(path) as archive:
         archive.extractall(tmp.name)
     folder = Path(tmp.name)
     return folder, rank_model_files(model_files(folder), folder, path.stem)
 
 
-def load_source(path: str | Path) -> SourceModel:
-    path = Path(path)
-    model_file = path
-    if path.suffix.lower() == ".zip":
-        _, ranked = extract_archive(path)
-        model_file = ranked[0] if ranked else None
-        if model_file is None:
-            raise ValueError(f"no 3D model ({', '.join(MODEL_EXTENSIONS)}) in {path.name}")
-    elif path.suffix.lower() not in MODEL_EXTENSIONS:
-        raise ValueError(f"unsupported format: {path.suffix} (accepted: .zip {' '.join(MODEL_EXTENSIONS)})")
-
+def _load_source_file(model_file: Path, from_zip: bool) -> SourceModel:
     if model_file.suffix.lower() == ".dae":
         from src.core.dae import load as load_dae
         parts = load_dae(model_file)
@@ -186,8 +213,8 @@ def load_source(path: str | Path) -> SourceModel:
     if not parts:
         raise ValueError(f"{model_file.name} contains no triangles")
 
-    report: list = []
-    fallback = _folder_image(model_file.parent, model_file, path.suffix.lower() == ".zip")
+    report: list[str] = []
+    fallback = _folder_image(model_file.parent, model_file, from_zip)
     pieces = [_piece(p, i, report, fallback) for i, p in enumerate(parts)]
     atlas, rects = _pack_atlas([piece[3] for piece in pieces])
     vertices, faces, uvs, windings = [], [], [], []
@@ -204,15 +231,28 @@ def load_source(path: str | Path) -> SourceModel:
     return SourceModel(model_file.stem, np.vstack(vertices), np.vstack(faces), np.vstack(uvs), atlas, winding, report)
 
 
+def load_source(path: str | Path) -> SourceModel:
+    path = Path(path)
+    if path.suffix.lower() == ".zip":
+        with extracted_archive(path) as (_folder, ranked):
+            model_file = ranked[0] if ranked else None
+            if model_file is None:
+                raise ValueError(f"no 3D model ({', '.join(MODEL_EXTENSIONS)}) in {path.name}")
+            return _load_source_file(model_file, from_zip=True)
+    elif path.suffix.lower() not in MODEL_EXTENSIONS:
+        raise ValueError(f"unsupported format: {path.suffix} (accepted: .zip {' '.join(MODEL_EXTENSIONS)})")
+    return _load_source_file(path, from_zip=False)
+
+
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".tga", ".bmp", ".webp")
 
 
-def _is_placeholder(image) -> bool:
+def _is_placeholder(image: Image.Image | None) -> bool:
     """trimesh invents a 2x2 grey image when an .obj points at a missing .mtl/texture."""
     return image is None or image.width * image.height <= 16
 
 
-def _folder_image(folder: Path, model_file: Path, from_zip: bool):
+def _folder_image(folder: Path, model_file: Path, from_zip: bool) -> tuple[Image.Image, str] | None:
     """A texture lying next to the model, for files whose material does not link to it.
 
     Inside a .zip every image counts; next to a loose file only an image with a similar name (or the only image)."""
@@ -232,7 +272,12 @@ def _folder_image(folder: Path, model_file: Path, from_zip: bool):
     return None
 
 
-def _piece(mesh: trimesh.Trimesh, index: int = 0, report: list | None = None, fallback=None):
+def _piece(
+    mesh: trimesh.Trimesh,
+    index: int = 0,
+    report: list[str] | None = None,
+    fallback: tuple[Image.Image, str] | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, Image.Image, float]:
     """One material's worth of geometry: vertices, faces, top-left UVs, its texture tile and winding sign."""
     report = report if report is not None else []
     vertices = np.asarray(mesh.vertices, float)
@@ -267,7 +312,7 @@ def _piece(mesh: trimesh.Trimesh, index: int = 0, report: list | None = None, fa
     return vertices, faces, np.full((len(vertices), 2), 0.5), Image.new("RGB", (8, 8), color), winding
 
 
-def _tint(image: Image.Image, material) -> Image.Image:
+def _tint(image: Image.Image, material: Any) -> Image.Image:
     """glTF multiplies the texture by baseColorFactor; apply it when it is not (almost) white."""
     factor = getattr(material, "baseColorFactor", None)
     if factor is None:
@@ -279,7 +324,9 @@ def _tint(image: Image.Image, material) -> Image.Image:
     return Image.fromarray(np.clip(np.asarray(image, np.float32) * c, 0, 255).astype(np.uint8))
 
 
-def _tile_if_repeating(image: Image.Image, uv: np.ndarray, name: str, report: list):
+def _tile_if_repeating(
+    image: Image.Image, uv: np.ndarray, name: str, report: list[str]
+) -> tuple[Image.Image, np.ndarray]:
     """UVs outside 0-1 mean the texture repeats. The atlas cannot repeat, so the tile is duplicated instead
     (clamping would smear the border pixels over the whole surface)."""
     lo, hi = np.floor(uv.min(0) + 0.01), np.ceil(uv.max(0) - 0.01)
@@ -336,7 +383,7 @@ def _pack_atlas(images: list[Image.Image]) -> tuple[Image.Image, list[tuple[int,
     return Image.fromarray(atlas[:height]), rects
 
 
-def _material_image(material):
+def _material_image(material: Any) -> Image.Image | None:
     for attr in ("image", "baseColorTexture"):
         image = getattr(material, attr, None)
         if image is not None:
@@ -344,7 +391,7 @@ def _material_image(material):
     return None
 
 
-def _material_color(material):
+def _material_color(material: Any) -> tuple[int, int, int]:
     for attr in ("main_color", "baseColorFactor", "diffuse"):
         color = getattr(material, attr, None)
         if color is not None:
@@ -353,7 +400,9 @@ def _material_color(material):
     return (200, 200, 200)
 
 
-def _palette_texture(mesh, vertices, faces):
+def _palette_texture(
+    mesh: trimesh.Trimesh, vertices: np.ndarray, faces: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, Image.Image]:
     """Per-face colours become cells of a small tile, one UV per triangle corner."""
     colors = np.asarray(mesh.visual.face_colors, np.uint8)[:, :3]
     unique, face_cell = np.unique(colors, axis=0, return_inverse=True)
@@ -372,7 +421,7 @@ def _palette_texture(mesh, vertices, faces):
 
 
 def _power_of_two(image: Image.Image) -> Image.Image:
-    def p2(n):
+    def p2(n: int) -> int:
         return int(min(MAX_TEXTURE, max(4, 2 ** int(np.ceil(np.log2(max(n, 1)))))))
     size = (p2(image.width), p2(image.height))
     return image if image.size == size else image.resize(size, Image.LANCZOS)

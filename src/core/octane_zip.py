@@ -11,12 +11,15 @@ entries byte for byte and adding new ones: rebuilding icons.zip (22 700 files, 1
 instead of extracting, copying and re-encrypting everything. The name hash is computed by offsetting.exe (the
 new entries come from a small archive it builds), as the game expects it.
 """
+from __future__ import annotations
+
 import hashlib
 import json
 import struct
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
@@ -38,7 +41,7 @@ class Entry:
     name: str
     hash: int
     raw: bytes  # the encrypted entry exactly as stored (header + name + extra + data)
-    header: tuple  # decrypted local header fields
+    header: tuple[bytes, int, int, int, int, int, int, int, int, int, int]  # decrypted local header fields
 
     @property
     def method(self) -> int:
@@ -53,17 +56,17 @@ class Entry:
         return zlib.decompress(comp, -15) if self.method == 8 else comp
 
 
-def read(path: Path) -> list[Entry]:
+def read(path: str | Path) -> list[Entry]:
     """Entries in file order."""
     raw = Path(path).read_bytes()
     count = struct.unpack_from("<I", _ctr(raw[:8]), 4)[0]
     index = _ctr(raw[:8 + 8 * count])
     if index[:4] != b"PK\xff\xff":
         raise ValueError(f"{path}: not an encrypted game archive")
-    pairs = sorted((struct.unpack_from("<II", index, 8 + 8 * i) for i in range(count)), key=lambda p: p[1])
-    entries = []
+    pairs: list[tuple[int, int]] = sorted((struct.unpack_from("<II", index, 8 + 8 * i) for i in range(count)), key=lambda p: p[1])
+    entries: list[Entry] = []
     for h, off in pairs:
-        head = _LOCAL.unpack_from(_ctr(raw[off:off + 0x1e]))
+        head: tuple[bytes, int, int, int, int, int, int, int, int, int, int] = _LOCAL.unpack_from(_ctr(raw[off:off + 0x1e]))
         if head[0] != b"PK\x03\x04":
             raise ValueError(f"{path}: bad entry at {off}")
         nl, el, cs = head[9], head[10], head[7]
@@ -72,12 +75,13 @@ def read(path: Path) -> list[Entry]:
     return entries
 
 
-def write(entries: list[Entry], out: Path, md5: dict[str, bytes] | None = None) -> None:
+def write(entries: list[Entry], out: str | Path, md5: dict[str, bytes] | None = None) -> None:
     """An archive holding `entries` in this order, laid out like offsetting.exe's. `md5`: known digests by name
     (the game's entries never change: computing them means inflating the whole archive)."""
     md5 = md5 or {}
     index_size = 8 + 8 * len(entries)
-    offsets, pos = [], index_size
+    offsets: list[int] = []
+    pos = index_size
     for e in entries:
         offsets.append(pos)
         pos += len(e.raw)
@@ -91,9 +95,9 @@ def write(entries: list[Entry], out: Path, md5: dict[str, bytes] | None = None) 
         central += _CENTRAL.pack(b"PK\x01\x02", 20, ver, flag, method, mtime, mdate, crc, cs, us, len(name),
                                  len(extra), 0, 0, 0, 0, off) + name + extra
     eocd = _EOCD.pack(b"PK\x05\x06", 0, 0, len(entries), len(entries), len(central), pos, 0)
-    out = Path(out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "wb") as f:
+    out_path = Path(out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "wb") as f:
         f.write(_ctr(index))
         for e in entries:
             f.write(e.raw)
@@ -101,25 +105,27 @@ def write(entries: list[Entry], out: Path, md5: dict[str, bytes] | None = None) 
         f.write(_ctr(eocd))
 
 
-def base_digests(base: Path, cache: Path | None) -> dict[str, bytes]:
+def base_digests(base: str | Path, cache: str | Path | None = None) -> dict[str, bytes]:
     """md5 of every entry of a game archive, kept in `cache` (json) while the archive is unchanged."""
-    st = Path(base).stat()
+    base_path = Path(base)
+    st = base_path.stat()
     key = f"{st.st_size}_{st.st_mtime_ns}"
-    if cache is not None and cache.is_file():
+    cache_path = Path(cache) if cache is not None else None
+    if cache_path is not None and cache_path.is_file():
         try:
-            data = json.loads(cache.read_text(encoding="utf-8"))
+            data = json.loads(cache_path.read_text(encoding="utf-8"))
             if data.get("source") == key:
                 return {k: bytes.fromhex(v) for k, v in data["md5"].items()}
         except (OSError, ValueError, KeyError):
             pass
-    digests = {e.name: hashlib.md5(e.data()).digest() for e in read(base)}
-    if cache is not None:
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_text(json.dumps({"source": key, "md5": {k: v.hex() for k, v in digests.items()}}), encoding="utf-8")
+    digests = {e.name: hashlib.md5(e.data()).digest() for e in read(base_path)}
+    if cache_path is not None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps({"source": key, "md5": {k: v.hex() for k, v in digests.items()}}), encoding="utf-8")
     return digests
 
 
-def merge(base: Path, extra: Path, out: Path, cache: Path | None = None) -> int:
+def merge(base: str | Path, extra: str | Path, out: str | Path, cache: str | Path | None = None) -> int:
     """out = base archive + the entries of `extra` (same names replaced). Returns the number of entries.
     `cache`: json file keeping the base archive's digests between rebuilds."""
     added = read(extra)

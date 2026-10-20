@@ -16,7 +16,7 @@ from src.core.paths import BMS_SCRIPT, QUICKBMS
 from src.core.rig import RigResult, skin
 from src.core.skeleton import SIDES
 
-_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+_NO_WINDOW: int = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 @dataclass
@@ -49,7 +49,7 @@ def _rot_z(angle_rad: float) -> np.ndarray:
 
 def _find_bone(base: BaseCharacter, prefix: str, side: str = "") -> int:
     side_short = ("_L" if side == "Left" else "_R") if side else ""
-    candidates = []
+    candidates: list[str] = []
     if side:
         candidates = [f"{prefix}_{side}", f"{prefix}{side_short}", f"{prefix}_{side.lower()}", f"{prefix}{side}"]
     else:
@@ -68,6 +68,63 @@ def _find_bone(base: BaseCharacter, prefix: str, side: str = "") -> int:
     return 0
 
 
+def _make_transform(rot: np.ndarray, pivot: np.ndarray, offset: np.ndarray | None = None) -> np.ndarray:
+    """Create a 4x4 affine matrix rotating around `pivot` with an optional translation offset."""
+    mat = np.eye(4, dtype=np.float32)
+    mat[:3, :3] = rot
+    t = pivot - pivot @ rot
+    if offset is not None:
+        t = t + offset
+    mat[3, :3] = t
+    return mat
+
+
+def _matches_side(name: str, side: str) -> bool:
+    """Check if bone `name` belongs to `side` ('Left' or 'Right')."""
+    if not side:
+        return True
+    side_suffix = (side, "_L" if side == "Left" else "_R")
+    nl = name.lower()
+    return any(nl.endswith(sfx.lower()) for sfx in side_suffix)
+
+
+def _apply_bone_transform(
+    base: BaseCharacter,
+    posed: np.ndarray,
+    prefixes: tuple[str, ...],
+    mat: np.ndarray,
+    side: str = "",
+    source: np.ndarray | None = None,
+) -> None:
+    """Apply transformation matrix `mat` to all bones matching `prefixes` and optional `side`."""
+    src = posed if source is None else source
+    for i, name in enumerate(base.bone_names):
+        if not name.startswith(prefixes):
+            continue
+        if side and not _matches_side(name, side):
+            continue
+        posed[i] = src[i] @ mat
+
+
+def _transform_bone_group(
+    base: BaseCharacter,
+    posed: np.ndarray,
+    pivot_bone: str,
+    prefixes: tuple[str, ...],
+    rot: np.ndarray,
+    side: str = "",
+    source: np.ndarray | None = None,
+    offset: np.ndarray | None = None,
+) -> np.ndarray:
+    """Rotate a group of bones around a pivot bone, optionally translating."""
+    src = posed if source is None else source
+    idx = _find_bone(base, pivot_bone, side)
+    pivot = src[idx][3, :3]
+    mat = _make_transform(rot, pivot, offset)
+    _apply_bone_transform(base, posed, prefixes, mat, side=side, source=src)
+    return mat
+
+
 # =============================================================================
 # PROCEDURAL MOTION EVALUATORS
 # =============================================================================
@@ -78,111 +135,63 @@ def evaluate_procedural_roll(base: BaseCharacter, world: np.ndarray, t: float) -
     u = (t % cycle) / cycle  # 0.0 to 1.0
 
     hips_idx = _find_bone(base, "Hips")
-    pivot_hips = world[hips_idx][3, :3].copy()
+    pivot_hips = world[hips_idx][3, :3]
 
-    # Complete 360-degree forward rotation around X
     roll_angle = 2.0 * math.pi * u
-
-    # Lower character toward floor during the roll
     drop_y = math.sin(u * math.pi) * 0.55
-    # Forward leap translation
     fwd_z = math.sin(u * math.pi) * 0.40
 
     rx = _rot_x(roll_angle)
-    rot_all = np.eye(4, dtype=np.float32)
-    rot_all[:3, :3] = rx
-    rot_all[3, :3] = pivot_hips - pivot_hips @ rx + np.array([0.0, -drop_y, fwd_z], dtype=np.float32)
-
-    # Roll root and whole armature
+    offset = np.array([0.0, -drop_y, fwd_z], dtype=np.float32)
+    rot_all = _make_transform(rx, pivot_hips, offset)
     posed = world @ rot_all
 
-    # Limb tucking (knees bent, thighs pulled forward, arms curled)
     tuck = math.sin(u * math.pi) ** 2
-    if tuck > 0.04:
-        r_thigh = _rot_x(math.radians(65.0 * tuck))
-        r_knee = _rot_x(math.radians(-90.0 * tuck))
-        r_arm = _rot_x(math.radians(45.0 * tuck))
+    if tuck <= 0.04:
+        return posed
 
-        for side, _ in SIDES:
-            side_sfx = (side, "_L" if side == "Left" else "_R")
-            th_idx = _find_bone(base, "Thigh", side)
-            p_th = posed[th_idx][3, :3]
-            m_th = np.eye(4, dtype=np.float32)
-            m_th[:3, :3] = r_thigh
-            m_th[3, :3] = p_th - p_th @ r_thigh
+    r_thigh = _rot_x(math.radians(65.0 * tuck))
+    r_knee = _rot_x(math.radians(-90.0 * tuck))
+    r_arm = _rot_x(math.radians(45.0 * tuck))
 
-            kn_idx = _find_bone(base, "Knee", side)
-            p_kn = posed[kn_idx][3, :3]
-            m_kn = np.eye(4, dtype=np.float32)
-            m_kn[:3, :3] = r_knee
-            m_kn[3, :3] = p_kn - p_kn @ r_knee
-
-            sh_idx = _find_bone(base, "Shoulder", side)
-            p_sh = posed[sh_idx][3, :3]
-            m_sh = np.eye(4, dtype=np.float32)
-            m_sh[:3, :3] = r_arm
-            m_sh[3, :3] = p_sh - p_sh @ r_arm
-
-            for i, n in enumerate(base.bone_names):
-                if any(n.endswith(sfx) for sfxx in side_sfx for sfx in (sfxx, sfxx.lower())):
-                    if n.startswith(("Knee", "Ankle", "Ball", "Toes")):
-                        posed[i] = posed[i] @ m_kn
-                    elif n.startswith("Thigh"):
-                        posed[i] = posed[i] @ m_th
-                    elif n.startswith(("Shoulder", "Elbow", "Hand")):
-                        posed[i] = posed[i] @ m_sh
+    for side, _ in SIDES:
+        _transform_bone_group(base, posed, "Knee", ("Knee", "Ankle", "Ball", "Toes"), r_knee, side=side)
+        _transform_bone_group(base, posed, "Thigh", ("Thigh",), r_thigh, side=side)
+        _transform_bone_group(base, posed, "Shoulder", ("Shoulder", "Elbow", "Hand"), r_arm, side=side)
 
     return posed
+
+
+def _jump_phase_params(u: float) -> tuple[float, float, float]:
+    """Return (h_offset, knee_angle, arm_factor) for phase u in [0, 1)."""
+    if u < 0.2:
+        crouch = math.sin((u / 0.2) * math.pi * 0.5) * 0.22
+        return -crouch, crouch * 2.2, 1.0
+    if u < 0.8:
+        p = (u - 0.2) / 0.6
+        s = math.sin(p * math.pi)
+        return s * 0.85, s * 0.7, 1.0
+    crouch = math.sin((1.0 - (u - 0.8) / 0.2) * math.pi * 0.5) * 0.2
+    return -crouch, crouch * 1.8, 0.2
 
 
 def evaluate_procedural_jump(base: BaseCharacter, world: np.ndarray, t: float) -> np.ndarray:
     """Evaluate athletic vertical jump with crouch, launch, mid-air tuck and landing."""
     cycle = 1.4
     u = (t % cycle) / cycle
-
-    if u < 0.2:
-        p = u / 0.2
-        crouch = math.sin(p * math.pi * 0.5) * 0.22
-        h_offset = -crouch
-        knee_angle = crouch * 2.2
-    elif u < 0.8:
-        p = (u - 0.2) / 0.6
-        jump_h = math.sin(p * math.pi) * 0.85
-        h_offset = jump_h
-        knee_angle = math.sin(p * math.pi) * 0.7
-    else:
-        p = (u - 0.8) / 0.2
-        crouch = math.sin((1.0 - p) * math.pi * 0.5) * 0.2
-        h_offset = -crouch
-        knee_angle = crouch * 1.8
+    h_offset, knee_angle, arm_factor = _jump_phase_params(u)
 
     t_mat = np.eye(4, dtype=np.float32)
     t_mat[3, 1] = h_offset
     posed = world @ t_mat
 
+    r_knee = _rot_x(-knee_angle)
+    arm_out = math.radians(25.0 * arm_factor)
+
     for side, _ in SIDES:
-        r_knee = _rot_x(-knee_angle)
-        kn_idx = _find_bone(base, "Knee", side)
-        p_kn = posed[kn_idx][3, :3]
-        m_kn = np.eye(4, dtype=np.float32)
-        m_kn[:3, :3] = r_knee
-        m_kn[3, :3] = p_kn - p_kn @ r_knee
-
-        arm_out = math.radians(25.0 * (1.0 if u < 0.8 else 0.2))
+        _transform_bone_group(base, posed, "Knee", ("Knee", "Ankle", "Ball", "Toes"), r_knee, side=side)
         r_sh = _rot_z(arm_out if side == "Left" else -arm_out)
-        sh_idx = _find_bone(base, "Shoulder", side)
-        p_sh = posed[sh_idx][3, :3]
-        m_sh = np.eye(4, dtype=np.float32)
-        m_sh[:3, :3] = r_sh
-        m_sh[3, :3] = p_sh - p_sh @ r_sh
-
-        side_sfx = (side, "_L" if side == "Left" else "_R")
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_sfx for sfx in (sfxx, sfxx.lower())):
-                if n.startswith(("Knee", "Ankle", "Ball", "Toes")):
-                    posed[i] = posed[i] @ m_kn
-                elif n.startswith(("Shoulder", "Elbow", "Hand")):
-                    posed[i] = posed[i] @ m_sh
+        _transform_bone_group(base, posed, "Shoulder", ("Shoulder", "Elbow", "Hand"), r_sh, side=side)
 
     return posed
 
@@ -192,156 +201,110 @@ def evaluate_procedural_combat_stance(base: BaseCharacter, world: np.ndarray, t:
     posed = world.copy()
     breathe = math.sin(2.0 * math.pi * 0.5 * t)
     spine_sway = breathe * math.radians(1.5)
-
     r_spine = _rot_y(math.radians(-12.0)) @ _rot_x(spine_sway)
-    hips_idx = _find_bone(base, "Hips")
-    p_hips = world[hips_idx][3, :3]
-    m_spine = np.eye(4, dtype=np.float32)
-    m_spine[:3, :3] = r_spine
-    m_spine[3, :3] = p_hips - p_hips @ r_spine
 
-    for i, n in enumerate(base.bone_names):
-        if n.startswith(("Spine", "Neck", "Head")):
-            posed[i] = world[i] @ m_spine
+    _transform_bone_group(base, posed, "Hips", ("Spine", "Neck", "Head"), r_spine, source=world)
 
     for side, _ in SIDES:
-        r_arm = _rot_x(math.radians(-35.0)) @ _rot_y(math.radians(-20.0 if side == "Right" else 20.0))
-        sh_idx = _find_bone(base, "Shoulder", side)
-        p_sh = world[sh_idx][3, :3]
-        m_arm = np.eye(4, dtype=np.float32)
-        m_arm[:3, :3] = r_arm
-        m_arm[3, :3] = p_sh - p_sh @ r_arm
-
-        side_sfx = (side, "_L" if side == "Left" else "_R")
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_sfx for sfx in (sfxx, sfxx.lower())) and n.startswith(
-                    ("Shoulder", "Elbow", "Hand", "Thumb", "Index", "Middle")):
-                posed[i] = world[i] @ m_arm
+        arm_y = math.radians(-20.0 if side == "Right" else 20.0)
+        r_arm = _rot_x(math.radians(-35.0)) @ _rot_y(arm_y)
+        _transform_bone_group(
+            base, posed, "Shoulder",
+            ("Shoulder", "Elbow", "Hand", "Thumb", "Index", "Middle"),
+            r_arm, side=side, source=world,
+        )
 
     return posed
+
+
+def _combo_1_angles(u: float) -> tuple[float, float, float]:
+    """Return (arm_z, arm_x, spine_y) in radians for phase u in [0, 1)."""
+    if u < 0.35:
+        p = u / 0.35
+        return math.radians(80.0 * p), math.radians(-30.0 * p), math.radians(-20.0 * p)
+    if u < 0.65:
+        p = (u - 0.35) / 0.3
+        return math.radians(80.0 - 130.0 * p), math.radians(-30.0 + 75.0 * p), math.radians(-20.0 + 45.0 * p)
+    p = (u - 0.65) / 0.35
+    inv_p = 1.0 - p
+    return math.radians(-50.0 * inv_p), math.radians(45.0 * inv_p), math.radians(25.0 * inv_p)
 
 
 def evaluate_procedural_combo_1(base: BaseCharacter, world: np.ndarray, t: float) -> np.ndarray:
     """Evaluate rapid horizontal slash attack (Combo Y)."""
     posed = world.copy()
     u = (t % 0.8) / 0.8
+    arm_z, arm_x, spine_y = _combo_1_angles(u)
 
-    if u < 0.35:
-        p = u / 0.35
-        arm_z = math.radians(80.0 * p)
-        arm_x = math.radians(-30.0 * p)
-        spine_y = math.radians(-20.0 * p)
-    elif u < 0.65:
-        p = (u - 0.35) / 0.3
-        arm_z = math.radians(80.0 - 130.0 * p)
-        arm_x = math.radians(-30.0 + 75.0 * p)
-        spine_y = math.radians(-20.0 + 45.0 * p)
-    else:
-        p = (u - 0.65) / 0.35
-        arm_z = math.radians(-50.0 * (1.0 - p))
-        arm_x = math.radians(45.0 * (1.0 - p))
-        spine_y = math.radians(25.0 * (1.0 - p))
+    _transform_bone_group(base, posed, "Hips", ("Spine", "Neck", "Head"), _rot_y(spine_y), source=world)
 
-    # Spine rotation
-    r_spine = _rot_y(spine_y)
-    hips_idx = _find_bone(base, "Hips")
-    p_hips = world[hips_idx][3, :3]
-    m_sp = np.eye(4, dtype=np.float32)
-    m_sp[:3, :3] = r_spine
-    m_sp[3, :3] = p_hips - p_hips @ r_spine
-    for i, n in enumerate(base.bone_names):
-        if n.startswith(("Spine", "Neck", "Head")):
-            posed[i] = world[i] @ m_sp
-
-    # Right arm strike
-    sh_idx = _find_bone(base, "Shoulder", "Right")
-    p_sh = world[sh_idx][3, :3]
     r_arm = _rot_z(-arm_z) @ _rot_x(arm_x)
-    m_arm = np.eye(4, dtype=np.float32)
-    m_arm[:3, :3] = r_arm
-    m_arm[3, :3] = p_sh - p_sh @ r_arm
-    for i, n in enumerate(base.bone_names):
-        if (n.endswith("_Right") or n.endswith("_R")) and n.startswith(
-                ("Shoulder", "Elbow", "Forearm", "Hand", "Thumb", "Index", "Middle")):
-            posed[i] = world[i] @ m_arm
-
+    _transform_bone_group(
+        base, posed, "Shoulder",
+        ("Shoulder", "Elbow", "Forearm", "Hand", "Thumb", "Index", "Middle"),
+        r_arm, side="Right", source=world,
+    )
     return posed
 
 
-# Alias for backward compatibility
 evaluate_procedural_attack = evaluate_procedural_combo_1
 
+
+def _combo_2_angles(u: float) -> tuple[float, float]:
+    """Return (arm_x, arm_y) in radians for phase u in [0, 1)."""
+    if u < 0.3:
+        p = u / 0.3
+        return math.radians(60.0 * p), math.radians(-40.0 * p)
+    if u < 0.6:
+        p = (u - 0.3) / 0.3
+        return math.radians(60.0 - 110.0 * p), math.radians(-40.0 + 80.0 * p)
+    p = (u - 0.6) / 0.3
+    inv_p = 1.0 - p
+    return math.radians(-50.0 * inv_p), math.radians(40.0 * inv_p)
 
 
 def evaluate_procedural_combo_2(base: BaseCharacter, world: np.ndarray, t: float) -> np.ndarray:
     """Evaluate reverse cross slash combo (Combo YY)."""
     posed = world.copy()
     u = (t % 0.9) / 0.9
+    arm_x, arm_y = _combo_2_angles(u)
 
-    if u < 0.3:
-        p = u / 0.3
-        arm_x = math.radians(60.0 * p)
-        arm_y = math.radians(-40.0 * p)
-    elif u < 0.6:
-        p = (u - 0.3) / 0.3
-        arm_x = math.radians(60.0 - 110.0 * p)
-        arm_y = math.radians(-40.0 + 80.0 * p)
-    else:
-        p = (u - 0.6) / 0.3
-        arm_x = math.radians(-50.0 * (1.0 - p))
-        arm_y = math.radians(40.0 * (1.0 - p))
-
-    sh_idx = _find_bone(base, "Shoulder", "Right")
-    p_sh = world[sh_idx][3, :3]
     r_arm = _rot_x(arm_x) @ _rot_y(arm_y)
-    m_arm = np.eye(4, dtype=np.float32)
-    m_arm[:3, :3] = r_arm
-    m_arm[3, :3] = p_sh - p_sh @ r_arm
-
-    for i, n in enumerate(base.bone_names):
-        if (n.endswith("_Right") or n.endswith("_R")) and n.startswith(
-                ("Shoulder", "Elbow", "Forearm", "Hand", "Thumb", "Index", "Middle")):
-            posed[i] = world[i] @ m_arm
-
+    _transform_bone_group(
+        base, posed, "Shoulder",
+        ("Shoulder", "Elbow", "Forearm", "Hand", "Thumb", "Index", "Middle"),
+        r_arm, side="Right", source=world,
+    )
     return posed
+
+
+def _helmbreaker_params(u: float) -> tuple[float, float]:
+    """Return (h_off, arm_lift) for phase u in [0, 1)."""
+    if u < 0.4:
+        p = u / 0.4
+        return math.sin(p * math.pi * 0.5) * 0.65, math.radians(-110.0 * p)
+    if u < 0.65:
+        p = (u - 0.4) / 0.25
+        h = 0.65 * (1.0 - p) - 0.25 * math.sin(p * math.pi * 0.5)
+        return h, math.radians(-110.0 + 160.0 * p)
+    p = (u - 0.65) / 0.35
+    inv_p = 1.0 - p
+    return -0.25 * inv_p, math.radians(50.0 * inv_p)
 
 
 def evaluate_procedural_helmbreaker(base: BaseCharacter, world: np.ndarray, t: float) -> np.ndarray:
     """Evaluate heavy jumping overhead smash (Helmbreaker / Ground Slam)."""
     cycle = 1.4
     u = (t % cycle) / cycle
-    posed = world.copy()
-
-    if u < 0.4:
-        p = u / 0.4
-        h_off = math.sin(p * math.pi * 0.5) * 0.65
-        arm_lift = math.radians(-110.0 * p)
-    elif u < 0.65:
-        p = (u - 0.4) / 0.25
-        h_off = 0.65 * (1.0 - p) - 0.25 * math.sin(p * math.pi * 0.5)
-        arm_lift = math.radians(-110.0 + 160.0 * p)
-    else:
-        p = (u - 0.65) / 0.35
-        h_off = -0.25 * (1.0 - p)
-        arm_lift = math.radians(50.0 * (1.0 - p))
+    h_off, arm_lift = _helmbreaker_params(u)
 
     t_mat = np.eye(4, dtype=np.float32)
     t_mat[3, 1] = h_off
     posed = world @ t_mat
 
-    # Both arms raised overhead then slammed downward
+    r_arm = _rot_x(arm_lift)
     for side, _ in SIDES:
-        sh_idx = _find_bone(base, "Shoulder", side)
-        p_sh = posed[sh_idx][3, :3]
-        r_arm = _rot_x(arm_lift)
-        m_arm = np.eye(4, dtype=np.float32)
-        m_arm[:3, :3] = r_arm
-        m_arm[3, :3] = p_sh - p_sh @ r_arm
-        side_sfx = (side, "_L" if side == "Left" else "_R")
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_sfx for sfx in (sfxx, sfxx.lower())) and n.startswith(
-                    ("Shoulder", "Elbow", "Hand")):
-                posed[i] = posed[i] @ m_arm
+        _transform_bone_group(base, posed, "Shoulder", ("Shoulder", "Elbow", "Hand"), r_arm, side=side)
 
     return posed
 
@@ -349,54 +312,31 @@ def evaluate_procedural_helmbreaker(base: BaseCharacter, world: np.ndarray, t: f
 def evaluate_procedural_sprint(base: BaseCharacter, world: np.ndarray, t: float) -> np.ndarray:
     """Evaluate aggressive high-speed sprint cycle."""
     cycle = 0.65
-    freq = 1.0 / cycle
-    phase = 2.0 * math.pi * freq * t
+    phase = 2.0 * math.pi * (1.0 / cycle) * t
     posed = world.copy()
 
-    # Forward torso lean
     r_lean = _rot_x(math.radians(16.0))
-    hips_idx = _find_bone(base, "Hips")
-    p_hips = world[hips_idx][3, :3]
-    m_lean = np.eye(4, dtype=np.float32)
-    m_lean[:3, :3] = r_lean
-    m_lean[3, :3] = p_hips - p_hips @ r_lean
-    for i, n in enumerate(base.bone_names):
-        if n.startswith(("Spine", "Neck", "Head")):
-            posed[i] = world[i] @ m_lean
+    _transform_bone_group(base, posed, "Hips", ("Spine", "Neck", "Head"), r_lean, source=world)
 
     leg_amp = math.radians(52.0)
     arm_amp = math.radians(50.0)
 
     for side, sx in SIDES:
         leg_phase = phase if sx > 0 else (phase + math.pi)
-        thigh_angle = math.sin(leg_phase) * leg_amp
-
-        thigh_idx = _find_bone(base, "Thigh", side)
-        pivot_thigh = world[thigh_idx][3, :3]
-        r_thigh = _rot_x(thigh_angle)
-        rot_mat = np.eye(4, dtype=np.float32)
-        rot_mat[:3, :3] = r_thigh
-        rot_mat[3, :3] = pivot_thigh - pivot_thigh @ r_thigh
-
-        side_suffix = (side, "_L" if side == "Left" else "_R")
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_suffix for sfx in (sfxx, sfxx.lower())) and n.startswith(
-                    ("Thigh", "Knee", "Ankle", "Ball", "Toes")):
-                posed[i] = world[i] @ rot_mat
+        r_thigh = _rot_x(math.sin(leg_phase) * leg_amp)
+        _transform_bone_group(
+            base, posed, "Thigh",
+            ("Thigh", "Knee", "Ankle", "Ball", "Toes"),
+            r_thigh, side=side, source=world,
+        )
 
         arm_phase = leg_phase + math.pi
-        shoulder_angle = math.sin(arm_phase) * arm_amp
-        shoulder_idx = _find_bone(base, "Shoulder", side)
-        pivot_shoulder = world[shoulder_idx][3, :3]
-        r_shoulder = _rot_x(shoulder_angle)
-        rot_mat_arm = np.eye(4, dtype=np.float32)
-        rot_mat_arm[:3, :3] = r_shoulder
-        rot_mat_arm[3, :3] = pivot_shoulder - pivot_shoulder @ r_shoulder
-
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_suffix for sfx in (sfxx, sfxx.lower())) and n.startswith(
-                    ("Shoulder", "Elbow", "Forearm", "Hand")):
-                posed[i] = world[i] @ rot_mat_arm
+        r_shoulder = _rot_x(math.sin(arm_phase) * arm_amp)
+        _transform_bone_group(
+            base, posed, "Shoulder",
+            ("Shoulder", "Elbow", "Forearm", "Hand"),
+            r_shoulder, side=side, source=world,
+        )
 
     return posed
 
@@ -404,42 +344,27 @@ def evaluate_procedural_sprint(base: BaseCharacter, world: np.ndarray, t: float)
 def evaluate_procedural_walk(base: BaseCharacter, world: np.ndarray, t: float) -> np.ndarray:
     """Evaluate a dynamic, continuous walk cycle."""
     posed = world.copy()
-    freq = 1.0
-    phase = 2.0 * math.pi * freq * t
+    phase = 2.0 * math.pi * 1.0 * t
 
     leg_amp = math.radians(35.0)
     arm_amp = math.radians(30.0)
 
     for side, sx in SIDES:
         leg_phase = phase if sx > 0 else (phase + math.pi)
-        thigh_angle = math.sin(leg_phase) * leg_amp
-
-        thigh_idx = _find_bone(base, "Thigh", side)
-        pivot_thigh = world[thigh_idx][3, :3]
-        r_thigh = _rot_x(thigh_angle)
-        rot_mat = np.eye(4, dtype=np.float32)
-        rot_mat[:3, :3] = r_thigh
-        rot_mat[3, :3] = pivot_thigh - pivot_thigh @ r_thigh
-
-        side_suffix = (side, "_L" if side == "Left" else "_R")
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_suffix for sfx in (sfxx, sfxx.lower())) and n.startswith(
-                    ("Thigh", "Knee", "Ankle", "Ball", "Toes")):
-                posed[i] = world[i] @ rot_mat
+        r_thigh = _rot_x(math.sin(leg_phase) * leg_amp)
+        _transform_bone_group(
+            base, posed, "Thigh",
+            ("Thigh", "Knee", "Ankle", "Ball", "Toes"),
+            r_thigh, side=side, source=world,
+        )
 
         arm_phase = leg_phase + math.pi
-        shoulder_angle = math.sin(arm_phase) * arm_amp
-        shoulder_idx = _find_bone(base, "Shoulder", side)
-        pivot_shoulder = world[shoulder_idx][3, :3]
-        r_shoulder = _rot_x(shoulder_angle)
-        rot_mat_arm = np.eye(4, dtype=np.float32)
-        rot_mat_arm[:3, :3] = r_shoulder
-        rot_mat_arm[3, :3] = pivot_shoulder - pivot_shoulder @ r_shoulder
-
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_suffix for sfx in (sfxx, sfxx.lower())) and n.startswith(
-                    ("Shoulder", "Elbow", "Forearm", "Hand", "Thumb", "Index", "Middle")):
-                posed[i] = world[i] @ rot_mat_arm
+        r_shoulder = _rot_x(math.sin(arm_phase) * arm_amp)
+        _transform_bone_group(
+            base, posed, "Shoulder",
+            ("Shoulder", "Elbow", "Forearm", "Hand", "Thumb", "Index", "Middle"),
+            r_shoulder, side=side, source=world,
+        )
 
     return posed
 
@@ -453,10 +378,7 @@ def evaluate_procedural_idle(base: BaseCharacter, world: np.ndarray, t: float) -
 
     for i, n in enumerate(base.bone_names):
         if n.startswith(("Spine", "Neck", "Head", "Clavicle")):
-            pivot = world[i][3, :3]
-            rot = np.eye(4, dtype=np.float32)
-            rot[:3, :3] = r_spine
-            rot[3, :3] = pivot - pivot @ r_spine
+            rot = _make_transform(r_spine, world[i][3, :3])
             posed[i] = world[i] @ rot
 
     return posed
@@ -469,30 +391,13 @@ def evaluate_procedural_celebrate(base: BaseCharacter, world: np.ndarray, t: flo
     u = (t % cycle) / cycle
     sway = math.sin(u * 2.0 * math.pi) * math.radians(4.0)
 
-    # Spine celebration posture
     r_sp = _rot_x(math.radians(-6.0)) @ _rot_z(sway)
-    hips_idx = _find_bone(base, "Hips")
-    p_hips = world[hips_idx][3, :3]
-    m_sp = np.eye(4, dtype=np.float32)
-    m_sp[:3, :3] = r_sp
-    m_sp[3, :3] = p_hips - p_hips @ r_sp
-    for i, n in enumerate(base.bone_names):
-        if n.startswith(("Spine", "Neck", "Head")):
-            posed[i] = world[i] @ m_sp
+    _transform_bone_group(base, posed, "Hips", ("Spine", "Neck", "Head"), r_sp, source=world)
 
-    # Both arms raised high V-shape
     for side, _ in SIDES:
-        r_sh = _rot_x(math.radians(-125.0)) @ _rot_z(math.radians(-30.0 if side == "Right" else 30.0))
-        sh_idx = _find_bone(base, "Shoulder", side)
-        p_sh = world[sh_idx][3, :3]
-        m_sh = np.eye(4, dtype=np.float32)
-        m_sh[:3, :3] = r_sh
-        m_sh[3, :3] = p_sh - p_sh @ r_sh
-        side_sfx = (side, "_L" if side == "Left" else "_R")
-        for i, n in enumerate(base.bone_names):
-            if any(n.endswith(sfx) for sfxx in side_sfx for sfx in (sfxx, sfxx.lower())) and n.startswith(
-                    ("Shoulder", "Elbow", "Hand")):
-                posed[i] = world[i] @ m_sh
+        arm_z = math.radians(-30.0 if side == "Right" else 30.0)
+        r_sh = _rot_x(math.radians(-125.0)) @ _rot_z(arm_z)
+        _transform_bone_group(base, posed, "Shoulder", ("Shoulder", "Elbow", "Hand"), r_sh, side=side, source=world)
 
     return posed
 
@@ -503,22 +408,9 @@ def evaluate_procedural_hit_react(base: BaseCharacter, world: np.ndarray, t: flo
     u = (t % cycle) / cycle
     posed = world.copy()
 
-    if u < 0.25:
-        p = u / 0.25
-        recoil = math.radians(-22.0 * p)
-    else:
-        p = (u - 0.25) / 0.75
-        recoil = math.radians(-22.0 * (1.0 - p))
-
-    r_sp = _rot_x(recoil)
-    hips_idx = _find_bone(base, "Hips")
-    p_hips = world[hips_idx][3, :3]
-    m_sp = np.eye(4, dtype=np.float32)
-    m_sp[:3, :3] = r_sp
-    m_sp[3, :3] = p_hips - p_hips @ r_sp
-    for i, n in enumerate(base.bone_names):
-        if n.startswith(("Spine", "Neck", "Head")):
-            posed[i] = world[i] @ m_sp
+    p = u / 0.25 if u < 0.25 else (1.0 - (u - 0.25) / 0.75)
+    recoil = math.radians(-22.0 * p)
+    _transform_bone_group(base, posed, "Hips", ("Spine", "Neck", "Head"), _rot_x(recoil), source=world)
 
     return posed
 
@@ -527,20 +419,15 @@ def evaluate_procedural_death(base: BaseCharacter, world: np.ndarray, t: float) 
     """Evaluate knockout / defeat collapse."""
     cycle = 1.6
     u = min(1.0, (t % cycle) / (cycle * 0.8))  # settle at end
-    posed = world.copy()
 
     drop = math.sin(u * math.pi * 0.5) * 0.85
     fall_back = math.radians(-75.0 * u)
-
-    r_fall = _rot_x(fall_back)
     hips_idx = _find_bone(base, "Hips")
     p_hips = world[hips_idx][3, :3]
-    m_fall = np.eye(4, dtype=np.float32)
-    m_fall[:3, :3] = r_fall
-    m_fall[3, :3] = p_hips - p_hips @ r_fall + np.array([0.0, -drop, -0.3 * u], dtype=np.float32)
+    offset = np.array([0.0, -drop, -0.3 * u], dtype=np.float32)
+    m_fall = _make_transform(_rot_x(fall_back), p_hips, offset)
 
-    posed = world @ m_fall
-    return posed
+    return world @ m_fall
 
 
 # =============================================================================
@@ -567,12 +454,38 @@ def scan_game_motions(base: BaseCharacter, game_dir: Path | None = None) -> list
         return []
 
 
+def _map_motion_evaluator(stem: str) -> Callable[[BaseCharacter, np.ndarray, float], np.ndarray]:
+    """Map motion file stem to the closest procedural motion evaluator."""
+    sl = stem.lower()
+    if any(k in sl for k in ("roll", "diveroll", "dodge")):
+        return evaluate_procedural_roll
+    if any(k in sl for k in ("jump", "air", "fall", "land")):
+        return evaluate_procedural_jump
+    if any(k in sl for k in ("run", "sprint")):
+        return evaluate_procedural_sprint
+    if any(k in sl for k in ("walk", "patrol")):
+        return evaluate_procedural_walk
+    if any(k in sl for k in ("combo", "atk", "slash", "swing", "strike")):
+        return evaluate_procedural_combo_1
+    if any(k in sl for k in ("smash", "helmbreaker", "slam")):
+        return evaluate_procedural_helmbreaker
+    if any(k in sl for k in ("stance", "guard", "block")):
+        return evaluate_procedural_combat_stance
+    if any(k in sl for k in ("rct", "hit", "stmb")):
+        return evaluate_procedural_hit_react
+    if any(k in sl for k in ("death", "fail", "ko")):
+        return evaluate_procedural_death
+    if any(k in sl for k in ("celebrate", "taunt", "cheer")):
+        return evaluate_procedural_celebrate
+    return evaluate_procedural_idle
+
+
 def get_character_animation_clips(base: BaseCharacter, game_dir: Path | None = None) -> dict[str, AnimationClip]:
     """Build the comprehensive, character-specific animation suite for the selected base figure."""
     prefix = base.actor.split("_")[-1].lower() if "_" in base.actor else base.actor.lower()
 
     # Core canonical moveset tailored to the character
-    clips = {
+    clips: dict[str, AnimationClip] = {
         f"Roll / Dive Roll (Rouler) [{prefix}_atk_diveroll]": AnimationClip(
             name=f"Roll / Dive Roll (Rouler) [{prefix}_atk_diveroll]",
             duration=1.2, fps=30.0, evaluate_world=evaluate_procedural_roll
@@ -629,36 +542,14 @@ def get_character_animation_clips(base: BaseCharacter, game_dir: Path | None = N
         stem = m[:-4] if m.endswith(".oct") else m
         if any(stem in k for k in clips):
             continue
-        evaluator = evaluate_procedural_idle
-        sl = stem.lower()
-        if any(k in sl for k in ("roll", "diveroll", "dodge")):
-            evaluator = evaluate_procedural_roll
-        elif any(k in sl for k in ("jump", "air", "fall", "land")):
-            evaluator = evaluate_procedural_jump
-        elif any(k in sl for k in ("run", "sprint")):
-            evaluator = evaluate_procedural_sprint
-        elif any(k in sl for k in ("walk", "patrol")):
-            evaluator = evaluate_procedural_walk
-        elif any(k in sl for k in ("combo", "atk", "slash", "swing", "strike")):
-            evaluator = evaluate_procedural_combo_1
-        elif any(k in sl for k in ("smash", "helmbreaker", "slam")):
-            evaluator = evaluate_procedural_helmbreaker
-        elif any(k in sl for k in ("stance", "guard", "block")):
-            evaluator = evaluate_procedural_combat_stance
-        elif any(k in sl for k in ("rct", "hit", "stmb")):
-            evaluator = evaluate_procedural_hit_react
-        elif any(k in sl for k in ("death", "fail", "ko")):
-            evaluator = evaluate_procedural_death
-        elif any(k in sl for k in ("celebrate", "taunt", "cheer")):
-            evaluator = evaluate_procedural_celebrate
-
+        evaluator = _map_motion_evaluator(stem)
         name = f"Game Motion: {stem}"
         clips[name] = AnimationClip(name=name, duration=1.2, fps=30.0, evaluate_world=evaluator)
 
     return clips
 
 
-BUILTIN_CLIPS = {
+BUILTIN_CLIPS: dict[str, AnimationClip] = {
     "Roll / Dive Roll (Rouler)": AnimationClip(
         name="Roll / Dive Roll (Rouler)", duration=1.2, fps=30.0, evaluate_world=evaluate_procedural_roll
     ),
@@ -670,7 +561,7 @@ BUILTIN_CLIPS = {
 }
 
 
-FINGER_PREFIXES = ("Thumb", "Index", "Middle")
+FINGER_PREFIXES: tuple[str, ...] = ("Thumb", "Index", "Middle")
 
 
 def follow_hands(base: BaseCharacter, world: np.ndarray, posed: np.ndarray) -> np.ndarray:
@@ -691,12 +582,12 @@ def follow_hands(base: BaseCharacter, world: np.ndarray, posed: np.ndarray) -> n
 class AnimationPlayer:
     """Controls animation playback, scrubbing, and frame evaluation."""
 
-    def __init__(self, fps: float = 30.0):
-        self.fps = fps
-        self.is_playing = False
-        self.loop = True
-        self.speed = 1.0
-        self.current_time = 0.0
+    def __init__(self, fps: float = 30.0) -> None:
+        self.fps: float = fps
+        self.is_playing: bool = False
+        self.loop: bool = True
+        self.speed: float = 1.0
+        self.current_time: float = 0.0
         self._last_perf_time: float | None = None
         self.active_clip: AnimationClip | None = BUILTIN_CLIPS["Roll / Dive Roll (Rouler)"]
 
@@ -713,37 +604,37 @@ class AnimationPlayer:
         f = int(round(self.current_time * self.fps))
         return min(max(0, f), self.total_frames - 1)
 
-    def set_clip(self, clip: AnimationClip | None):
+    def set_clip(self, clip: AnimationClip | None) -> None:
         self.active_clip = clip
         self.current_time = 0.0
         self._last_perf_time = None
 
-    def play(self):
+    def play(self) -> None:
         self.is_playing = True
         self._last_perf_time = time.perf_counter()
 
-    def pause(self):
+    def pause(self) -> None:
         self.is_playing = False
         self._last_perf_time = None
 
-    def toggle_play(self):
+    def toggle_play(self) -> None:
         if self.is_playing:
             self.pause()
         else:
             self.play()
 
-    def stop(self):
+    def stop(self) -> None:
         self.is_playing = False
         self.current_time = 0.0
         self._last_perf_time = None
 
-    def seek_frame(self, frame: int):
+    def seek_frame(self, frame: int) -> None:
         target = max(0, min(frame, self.total_frames - 1))
         self.current_time = float(target) / self.fps
         if self.current_time > self.duration:
             self.current_time = self.duration
 
-    def seek_time(self, t: float):
+    def seek_time(self, t: float) -> None:
         if self.duration <= 0:
             self.current_time = 0.0
             return
@@ -785,22 +676,19 @@ class AnimationPlayer:
         if self.active_clip.evaluate_world is not None:
             return follow_hands(base, world, self.active_clip.evaluate_world(base, world, self.current_time))
 
-        if self.active_clip.custom_track is not None:
-            bone_poses = self.active_clip.custom_track.sample(self.current_time)
-            posed_world = world.copy()
-            for bone_name, (pos, rot) in bone_poses.items():
-                try:
-                    idx = base.bone_index(bone_name)
-                    pivot = world[idx][3, :3]
-                    m = np.eye(4, dtype=np.float32)
-                    m[:3, :3] = rot
-                    m[3, :3] = pivot - pivot @ rot + pos
-                    posed_world[idx] = world[idx] @ m
-                except (KeyError, ValueError):
-                    pass
-            return posed_world
+        if self.active_clip.custom_track is None:
+            return world
 
-        return world
+        bone_poses = self.active_clip.custom_track.sample(self.current_time)
+        posed_world = world.copy()
+        for bone_name, (pos, rot) in bone_poses.items():
+            try:
+                idx = base.bone_index(bone_name)
+                m = _make_transform(rot, world[idx][3, :3], pos)
+                posed_world[idx] = world[idx] @ m
+            except (KeyError, ValueError):
+                pass
+        return posed_world
 
     def evaluate_pose_and_world(self, rig: RigResult) -> tuple[np.ndarray, np.ndarray]:
         """Compute deformed mesh vertex positions and posed_world for the current frame."""

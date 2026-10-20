@@ -207,7 +207,8 @@ def _materials(root: ET.Element, folder: Path) -> dict[str, tuple[Image.Image | 
 
 def load(path: str | Path) -> list[trimesh.Trimesh]:
     path = Path(path)
-    root = ET.parse(path).getroot()
+    with open(path, "rb") as f:
+        root = ET.parse(f).getroot()
     asset = _child(root, "asset")
     unit = _child(asset, "unit") if asset is not None else None
     scale = float(unit.get("meter", 1.0)) if unit is not None else 1.0
