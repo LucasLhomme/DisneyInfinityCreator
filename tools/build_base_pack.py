@@ -35,7 +35,7 @@ def main(game_dir: str) -> None:
             total += add_to_pack(base, status, game.texture, looks_like_normal_map)
             rows[entry.actor] = index_row(base, status)
             print(f"{status.mark} {entry.display_name:28} {status.summary[:80]}")
-        except Exception as exc:  # one broken figure must not stop the others
+        except (OSError, ValueError, RuntimeError, KeyError, AttributeError) as exc:  # one broken figure must not stop the others
             print(f"? {entry.display_name:28} skipped: {exc}")
     write_index(rows)
     print(f"{len(rows)} figures, {total / 1e6:.1f} MB, {time.time() - t0:.0f} s")

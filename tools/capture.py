@@ -42,28 +42,29 @@ def main():
     source = load_source(str(args.model))
     model = CharacterModel(source, auto_placement(source, base.fit_height))
     props, fit = measure(model.vertices(), model.faces, base)
-    work = Path(tempfile.mkdtemp(prefix="di_capture_"))
-    rig = build_rig(model, build_anchors(props, base), base, args.blender, work, print)
-    report = deformation_report(rig, args.amount)
+    with tempfile.TemporaryDirectory(prefix="di_capture_") as temp_dir:
+        work = Path(temp_dir)
+        rig = build_rig(model, build_anchors(props, base), base, args.blender, work, print)
+        report = deformation_report(rig, args.amount)
 
-    renderer = GLRenderer(_Label())
-    renderer.width, renderer.height = 1500, 700
-    renderer._make_fbo()
-    renderer.render = lambda: None  # no window to draw into: pictures come from snapshot()
-    renderer.multi_view = True
-    renderer.set_model(rig.tpose, rig.faces, rig.uvs, model.texture)
-    renderer.frame_all()
-    for pose, title in (("tpose", "Rest"), ("arms", "Arms up"), ("walk", "Walk")):
-        renderer.update_model_vertices(rig.posed(pose, args.amount))
-        renderer.set_heat_lines(stretched_segments(rig, pose, args.amount))
-        image = renderer.snapshot()
-        ImageDraw.Draw(image).text((10, 8), f"{title} - {args.amount:.0%} - {report.score}/100 ({report.level})",
-                                   fill=(255, 255, 255))
-        image.save(args.out / f"{pose}.png")
-    text = fit.summary() + "\n" + report.summary()
-    (args.out / "report.txt").write_text(text, encoding="utf-8")
-    print(text)
-    print(f"Pictures saved in {args.out.resolve()}")
+        renderer = GLRenderer(_Label())
+        renderer.width, renderer.height = 1500, 700
+        renderer._make_fbo()
+        renderer.render = lambda: None  # no window to draw into: pictures come from snapshot()
+        renderer.multi_view = True
+        renderer.set_model(rig.tpose, rig.faces, rig.uvs, model.texture)
+        renderer.frame_all()
+        for pose, title in (("tpose", "Rest"), ("arms", "Arms up"), ("walk", "Walk")):
+            renderer.update_model_vertices(rig.posed(pose, args.amount))
+            renderer.set_heat_lines(stretched_segments(rig, pose, args.amount))
+            image = renderer.snapshot()
+            ImageDraw.Draw(image).text((10, 8), f"{title} - {args.amount:.0%} - {report.score}/100 ({report.level})",
+                                       fill=(255, 255, 255))
+            image.save(args.out / f"{pose}.png")
+        text = fit.summary() + "\n" + report.summary()
+        (args.out / "report.txt").write_text(text, encoding="utf-8")
+        print(text)
+        print(f"Pictures saved in {args.out.resolve()}")
 
 
 if __name__ == "__main__":

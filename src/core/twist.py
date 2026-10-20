@@ -7,6 +7,9 @@ joints twists its whole shoulder cap or hip with the arm or leg. This module cop
 those figures (median share of each bone by position along the limb), onto the model's weights.
 
 At bind pose nothing moves (both bones sit at the same place), so this only changes how limbs deform in game."""
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 
 from src.core.skeleton import SIDES
@@ -64,7 +67,13 @@ PROFILES = {
 SEGMENTS = {"upper_arm": ("Shoulder", "Elbow"), "forearm": ("Elbow", "Hand"), "thigh": ("Thigh", "Knee")}
 
 
-def split(baked: np.ndarray, merged: np.ndarray, palette_cols, base, log=None):
+def split(
+    baked: np.ndarray,
+    merged: np.ndarray,
+    palette_cols: Any,
+    base: Any,
+    log: Callable[[str], None] | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Move part of each limb's main-bone weight onto its helper bones: (merged, palette_cols), columns added."""
     merged = merged.copy()
     palette_cols = list(np.asarray(palette_cols))

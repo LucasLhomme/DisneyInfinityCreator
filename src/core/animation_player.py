@@ -563,7 +563,7 @@ def scan_game_motions(base: BaseCharacter, game_dir: Path | None = None) -> list
                    if len(line.split()) >= 3 and line.split()[2].lower().endswith(".oct")
                    and "motions" in line.split()[2].lower()]
         return sorted(set(motions))
-    except Exception:
+    except (subprocess.SubprocessError, OSError, ValueError):
         return []
 
 

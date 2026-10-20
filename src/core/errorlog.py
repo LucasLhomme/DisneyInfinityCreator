@@ -1,10 +1,14 @@
 """Crash and error log: nothing fails silently any more.
 
-Writes build/creator.log (kept small), and shows a message box on a crash so the window never just vanishes."""
+Writes build/creator.log (kept small), and shows a message box on a crash so the window never just vanishes.
+"""
+from __future__ import annotations
+
 import logging
 import sys
 import traceback
 from logging.handlers import RotatingFileHandler
+from types import TracebackType
 
 from src.core.paths import WORK_DIR
 
@@ -20,13 +24,13 @@ def install() -> None:
         handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         _logger.addHandler(handler)
         _logger.setLevel(logging.INFO)
-    except OSError:
-        pass  # a read-only folder must not stop the app
+    except OSError as exc:
+        print(f"Warning: Could not initialize log file at {LOG_PATH}: {exc}", file=sys.stderr)
     sys.excepthook = lambda kind, value, tb: report(kind, value, tb)
     try:
         import threading
         threading.excepthook = lambda args: report(args.exc_type, args.exc_value, args.exc_traceback)
-    except Exception:
+    except (ImportError, AttributeError):
         pass
 
 
@@ -34,13 +38,13 @@ def info(text: str) -> None:
     _logger.info(text)
 
 
-def report(kind, value, tb, show: bool = True) -> str:
+def report(kind: type[BaseException], value: BaseException, tb: TracebackType | None, show: bool = True) -> str:
     """Log an exception and (by default) tell the user where to find it. Returns the formatted traceback."""
     text = "".join(traceback.format_exception(kind, value, tb))
     _logger.error(text)
     print(text, file=sys.stderr)
     if show:
-        _show(f"{kind.__name__}: {value}\n\nFull details: {LOG_PATH}")
+        _show(f"{getattr(kind, '__name__', 'Error')}: {value}\n\nFull details: {LOG_PATH}")
     return text
 
 
@@ -48,5 +52,5 @@ def _show(message: str) -> None:
     try:
         from tkinter import messagebox
         messagebox.showerror("Disney Infinity Creator", message)
-    except Exception:
-        pass  # no display available: the log file is enough
+    except (ImportError, RuntimeError) as exc:
+        _logger.warning("Could not display GUI error dialog: %s", exc)

@@ -39,20 +39,21 @@ def main():
     files = sorted(p for p in args.folder.iterdir() if p.suffix.lower() in MODEL_EXTENSIONS or p.suffix.lower() == ".zip")
     if not files:
         sys.exit(f"No model found in {args.folder}")
-    work = Path(tempfile.mkdtemp(prefix="di_batch_"))
-    base = None if args.suggest else BaseCharacter.from_pack(find_entry(args.base))
-    for path in files:
-        try:
-            if args.suggest:
-                ranked = rank_bases(load_source(str(path)), load_roster(), work, blender=args.blender)[:3]
-                best = ", ".join(f"{c.display_name} {c.score}/100" for c in ranked)
-                print(f"{path.name}: best bases -> {best}")
-            else:
-                report = check_one(path, base, args.blender, work)
-                print(f"{path.name}: {report.score}/100 ({report.level}) - "
-                      + ", ".join(f"{p}: {c} stretched, worst x{w:.1f}" for p, (c, w) in report.per_pose.items()))
-        except Exception as exc:  # one bad file must not stop the batch
-            print(f"{path.name}: FAILED - {exc}")
+    with tempfile.TemporaryDirectory(prefix="di_batch_") as temp_dir:
+        work = Path(temp_dir)
+        base = None if args.suggest else BaseCharacter.from_pack(find_entry(args.base))
+        for path in files:
+            try:
+                if args.suggest:
+                    ranked = rank_bases(load_source(str(path)), load_roster(), work, blender=args.blender)[:3]
+                    best = ", ".join(f"{c.display_name} {c.score}/100" for c in ranked)
+                    print(f"{path.name}: best bases -> {best}")
+                else:
+                    report = check_one(path, base, args.blender, work)
+                    print(f"{path.name}: {report.score}/100 ({report.level}) - "
+                          + ", ".join(f"{p}: {c} stretched, worst x{w:.1f}" for p, (c, w) in report.per_pose.items()))
+            except (OSError, ValueError, RuntimeError, KeyError, AttributeError) as exc:  # one bad file must not stop the batch
+                print(f"{path.name}: FAILED - {exc}")
 
 
 if __name__ == "__main__":

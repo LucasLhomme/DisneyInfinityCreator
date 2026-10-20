@@ -1,6 +1,7 @@
 """Character gameplay capabilities, moveset archetypes, special powers, and custom animations."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -8,6 +9,8 @@ from typing import Any
 from src.core.base_character import BaseCharacter
 from src.core.blender_rig import AnimationTrack
 from src.core.roster import find_entry
+
+_logger = logging.getLogger("creator")
 
 
 class CombatArchetype(str, Enum):
@@ -99,7 +102,7 @@ class CustomAnimation:
     fps: float = 30.0
     track: AnimationTrack | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "slot": self.slot,
             "name": self.name,
@@ -109,11 +112,11 @@ class CustomAnimation:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> CustomAnimation:
+    def from_dict(cls, data: dict[str, Any]) -> CustomAnimation:
         return cls(
-            slot=data["slot"],
-            name=data["name"],
-            source_path=data.get("source_path", ""),
+            slot=str(data["slot"]),
+            name=str(data["name"]),
+            source_path=str(data.get("source_path", "")),
             duration=float(data.get("duration", 1.0)),
             fps=float(data.get("fps", 30.0)),
         )
@@ -166,7 +169,8 @@ class CharacterAbilities:
         try:
             entry = find_entry(eff_actor)
             return BaseCharacter.from_pack(entry)
-        except Exception:
+        except (KeyError, FileNotFoundError, ValueError, AttributeError) as exc:
+            _logger.warning("Failed to load animtree source for %s: %s", eff_actor, exc)
             return base
 
     def generate_parms_string(self, ident_name: str, base: BaseCharacter, entity_cfg: Any | None = None) -> str:
@@ -209,7 +213,7 @@ class CharacterAbilities:
 
         return ";".join(parms_list)
 
-    def apply_to_manifest(self, manifest: dict, base: BaseCharacter) -> dict:
+    def apply_to_manifest(self, manifest: dict[str, Any], base: BaseCharacter) -> dict[str, Any]:
         """Augment mod.json manifest with ability tags and archetype data."""
         eff_actor = self.effective_combat_actor(base)
         manifest["abilities"] = {
@@ -259,7 +263,7 @@ class CharacterAbilities:
 
         return " | ".join(parts)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "combat_archetype": self.combat_archetype.value,
             "combat_source_actor": self.combat_source_actor,
@@ -275,19 +279,24 @@ class CharacterAbilities:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> CharacterAbilities:
+    def from_dict(cls, data: dict[str, Any]) -> CharacterAbilities:
         arch_val = data.get("combat_archetype", CombatArchetype.INHERIT_BASE.value)
         try:
             arch = CombatArchetype(arch_val)
         except ValueError:
             arch = CombatArchetype.INHERIT_BASE
 
-        anims = {}
-        for k, v in data.get("custom_animations", {}).items():
-            try:
-                anims[k] = CustomAnimation.from_dict(v)
-            except Exception:
-                pass
+        anims: dict[str, CustomAnimation] = {}
+        raw_anims = data.get("custom_animations", {})
+        if isinstance(raw_anims, dict):
+            for k, v in raw_anims.items():
+                if not isinstance(v, dict):
+                    _logger.warning("Skipping non-dict custom animation entry for %s: %r", k, v)
+                    continue
+                try:
+                    anims[k] = CustomAnimation.from_dict(v)
+                except (KeyError, ValueError, TypeError) as exc:
+                    _logger.warning("Failed to parse custom animation %s: %s", k, exc)
 
         return cls(
             combat_archetype=arch,

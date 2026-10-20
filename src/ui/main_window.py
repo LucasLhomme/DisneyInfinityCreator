@@ -965,7 +965,7 @@ class MainWindow(ctk.CTk):
             )
             self.log(f"Custom animation track imported for {slot}: {anim.name} ({anim.duration:.2f}s)")
             self._update_abilities_summary()
-        except Exception as exc:
+        except (RigParsingError, UnsupportedRigError, ValueError, OSError, RuntimeError) as exc:
             self.anim_status_label.configure(
                 text=f"Import failed: {exc}",
                 text_color=RED
@@ -1005,7 +1005,7 @@ class MainWindow(ctk.CTk):
             try:
                 entry = find_entry(eff_actor)
                 target_base = BaseCharacter.from_pack(entry)
-            except Exception:
+            except (KeyError, ValueError, OSError):
                 target_base = self.base
 
         if target_base:
@@ -1881,7 +1881,7 @@ class MainWindow(ctk.CTk):
         path = shown_path
         try:
             source = load_source(load_path)
-        except Exception as exc:
+        except (ValueError, OSError, RuntimeError, zipfile.BadZipFile) as exc:
             self.model_info.configure(text=f"Error: {exc}", text_color=RED)
             return
         source.report = list(notes) + list(source.report)
@@ -2244,7 +2244,7 @@ class MainWindow(ctk.CTk):
         """Measure how much the fresh rig stretches in the test poses and show it (and log it)."""
         try:
             report = deformation_report(self.rig)
-        except Exception as exc:  # never block the rig on a diagnostic
+        except (ValueError, ArithmeticError, RuntimeError, IndexError, KeyError) as exc:  # never block the rig on a diagnostic
             self.quality_label.configure(text=f"Deformation: could not be measured ({exc})", text_color=GREY)
             return
         colour = {"good": GREEN, "warn": YELLOW, "bad": RED}[report.level]

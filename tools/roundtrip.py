@@ -160,7 +160,8 @@ def main():
         import src.core.rigging as rigging
         rigging.blender_heat = lambda *a, **k: np.load(args.blender_weights)["weights"].astype(float)
         blender = Path(sys.executable)
-    rig = build_rig(model, anchors, base, blender, Path(tempfile.mkdtemp()), lambda s: None)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        rig = build_rig(model, anchors, base, blender, Path(temp_dir), lambda s: None)
 
     # Placement moved and scaled the model: the original is expressed in the same frame (k, shift above).
     original = bind * k + shift

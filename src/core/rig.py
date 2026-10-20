@@ -166,7 +166,10 @@ def build_rig(model: CharacterModel, anchors: dict, base: BaseCharacter, blender
         return standard
     from src.core.quality import deformation_report
 
-    robust_lines = lambda text: log(text) if text.strip().startswith(("Robust", "too few", "inpainting")) else None  # noqa: E731
+    def robust_lines(text: str) -> None:
+        if text.strip().startswith(("Robust", "too few", "inpainting")):
+            log(text)
+
     try:
         robust = _build_rig(model, anchors, base, blender, work, robust_lines, piece_overrides, weight_transfer, fingers,
                             twist)
@@ -188,7 +191,9 @@ SHOULDER_SMOOTHING = 8
 
 def shoulder_blend(weights: np.ndarray, names: list) -> np.ndarray:
     """0-1 per vertex: how much it sits on the seam between the chest and the upper arm (1 = half and half)."""
-    col = lambda n: weights[:, names.index(n)] if n in names else np.zeros(len(weights))  # noqa: E731
+    def col(n: str) -> np.ndarray:
+        return weights[:, names.index(n)] if n in names else np.zeros(len(weights))
+
     out = np.zeros(len(weights))
     for side, _ in SIDES:
         arm = col(f"Shoulder_{side}")
@@ -214,7 +219,9 @@ def _build_rig(model: CharacterModel, anchors: dict, base: BaseCharacter, blende
     transfer = None
     if weight_transfer:
         from src.core import weight_transfer as wt
-        transfer = lambda v, f, n: wt.transfer(v, f, base, anchors, n, log)  # noqa: E731
+
+        def transfer(v, f, n):
+            return wt.transfer(v, f, base, anchors, n, log)
     accessory = None
     if model.ignored is not None and model.ignored.any():
         accessory = np.zeros(len(wverts), bool)

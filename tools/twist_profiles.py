@@ -1,38 +1,130 @@
-"""Developer script: measure how the official figures share limb weights with their helper bones (src/core/twist.py).
+"""Developer script: measure how the official figures share limb weights with their helper bones.
 
-Usage: python tools/twist_profiles.py  (needs src/assets/bases); prints the median share of each bone along each limb."""
-import sys, json; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[1]))
+Usage: python tools/twist_profiles.py (needs src/assets/bases); prints the median share of each bone along each limb.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
 import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.core.base_character import S1_STRIDE, BaseCharacter
 from src.core.roster import find_entry
-from src.core.base_character import BaseCharacter, S1_STRIDE
-idx_json=json.load(open('src/assets/bases/index.json'))
-GROUPS={'upper_arm':(('Shoulder','Shoulder_Spin','Shoulder_OL'),'Shoulder','Elbow'),
-        'forearm':(('Elbow','Forearm_OL','Elbow_OL'),'Elbow','Hand'),
-        'thigh':(('Thigh','Thigh_OL'),'Thigh','Knee')}
-bins=np.linspace(-0.2,1.0,13); res={g:[] for g in GROUPS}
-for actor,row in idx_json.items():
-    if row['status']['state']!='standard': continue
-    b=BaseCharacter.from_pack(find_entry(actor)); prim=b.body_primitive; n=prim.vertex_count
-    s1=np.frombuffer(b._vbuf[prim.s1_offset:prim.s1_offset+n*S1_STRIDE],np.uint8).reshape(n,S1_STRIDE)
-    idx,w=s1[:,0:4].astype(int),s1[:,4:8]/255.0
-    verts=b.body_mesh[0]; names=list(b.bone_names); J=b.joints
-    W=np.zeros((n,len(names)))
-    for k in range(4): np.add.at(W,(np.arange(n),idx[:,k]),w[:,k])
-    for side,sgn in (('Left',1),('Right',-1)):
-        for g,(bones,a,e) in GROUPS.items():
-            cols=[names.index(f'{x}_{side}') if f'{x}_{side}' in names else None for x in bones]
-            if cols[0] is None or cols[1] is None: continue
-            G=np.stack([W[:,c] if c is not None else np.zeros(n) for c in cols],1)
-            tot=G.sum(1); A,E=J[f'{a}_{side}'],J[f'{e}_{side}']
-            t=((verts-A)@(E-A))/np.dot(E-A,E-A); m=tot>0.3
-            prof=np.full((len(bins)-1,len(bones)),np.nan)
-            for i,(lo,hi) in enumerate(zip(bins[:-1],bins[1:])):
-                s=m&(t>=lo)&(t<hi)
-                if s.sum()>3: prof[i]=(G[s]/tot[s,None]).mean(0)
-            res[g].append(prof)
-out={'t':list(np.round((bins[:-1]+bins[1:])/2,3))}
-for g,p in res.items():
-    med=np.nanmedian(np.array(p),0); med=np.nan_to_num(med); 
-    out[g]={'bones':GROUPS[g][0],'shares':np.round(med,3).tolist(),'n':len(p)}
-    print(g,len(p)); print(np.round(med,2).T)
-json.dump(out, open('build/twist_profiles.json', 'w'))
+
+INDEX_PATH = PROJECT_ROOT / "src" / "assets" / "bases" / "index.json"
+OUTPUT_PATH = PROJECT_ROOT / "build" / "twist_profiles.json"
+
+GROUPS: dict[str, tuple[tuple[str, ...], str, str]] = {
+    "upper_arm": (("Shoulder", "Shoulder_Spin", "Shoulder_OL"), "Shoulder", "Elbow"),
+    "forearm": (("Elbow", "Forearm_OL", "Elbow_OL"), "Elbow", "Hand"),
+    "thigh": (("Thigh", "Thigh_OL"), "Thigh", "Knee"),
+}
+
+
+def compute_twist_profiles() -> dict[str, Any]:
+    if not INDEX_PATH.is_file():
+        raise FileNotFoundError(f"{INDEX_PATH} not found: base assets required.")
+
+    with open(INDEX_PATH, "r", encoding="utf-8") as f:
+        index_data = json.load(f)
+
+    bins = np.linspace(-0.2, 1.0, 13)
+    results: dict[str, list[np.ndarray]] = {group: [] for group in GROUPS}
+
+    for actor, row in index_data.items():
+        if row.get("status", {}).get("state") != "standard":
+            continue
+
+        entry = find_entry(actor)
+        if entry is None:
+            continue
+
+        base = BaseCharacter.from_pack(entry)
+        primitive = base.body_primitive
+        vertex_count = primitive.vertex_count
+
+        s1_data = np.frombuffer(
+            base._vbuf[primitive.s1_offset:primitive.s1_offset + vertex_count * S1_STRIDE],
+            dtype=np.uint8,
+        ).reshape(vertex_count, S1_STRIDE)
+
+        joint_indices = s1_data[:, 0:4].astype(int)
+        weights = s1_data[:, 4:8] / 255.0
+        vertices = base.body_mesh[0]
+        bone_names = list(base.bone_names)
+        joints = base.joints
+
+        weight_matrix = np.zeros((vertex_count, len(bone_names)), dtype=float)
+        for k in range(4):
+            np.add.at(weight_matrix, (np.arange(vertex_count), joint_indices[:, k]), weights[:, k])
+
+        for side, _ in (("Left", 1), ("Right", -1)):
+            for group, (bones, start_joint, end_joint) in GROUPS.items():
+                cols = [
+                    bone_names.index(f"{b}_{side}") if f"{b}_{side}" in bone_names else None
+                    for b in bones
+                ]
+                if cols[0] is None or cols[1] is None:
+                    continue
+
+                group_weights = np.stack(
+                    [weight_matrix[:, c] if c is not None else np.zeros(vertex_count) for c in cols],
+                    axis=1,
+                )
+                total_weight = group_weights.sum(axis=1)
+                start_pos = joints[f"{start_joint}_{side}"]
+                end_pos = joints[f"{end_joint}_{side}"]
+                axis = end_pos - start_pos
+                axis_length_sq = np.dot(axis, axis)
+                if axis_length_sq < 1e-12:
+                    continue
+
+                t_param = ((vertices - start_pos) @ axis) / axis_length_sq
+                valid_mask = total_weight > 0.3
+
+                profile = np.full((len(bins) - 1, len(bones)), np.nan)
+                for i, (lo, hi) in enumerate(zip(bins[:-1], bins[1:])):
+                    in_bin = valid_mask & (t_param >= lo) & (t_param < hi)
+                    if in_bin.sum() > 3:
+                        norm_weights = group_weights[in_bin] / total_weight[in_bin, None]
+                        profile[i] = norm_weights.mean(axis=0)
+
+                results[group].append(profile)
+
+    output: dict[str, Any] = {
+        "t": list(np.round((bins[:-1] + bins[1:]) / 2.0, 3)),
+    }
+
+    for group, profiles in results.items():
+        if not profiles:
+            continue
+        median_profile = np.nanmedian(np.array(profiles), axis=0)
+        median_profile = np.nan_to_num(median_profile)
+        output[group] = {
+            "bones": GROUPS[group][0],
+            "shares": np.round(median_profile, 3).tolist(),
+            "n": len(profiles),
+        }
+        print(f"Group {group}: {len(profiles)} samples")
+        print(np.round(median_profile, 2).T)
+
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(output, f, indent=2)
+
+    return output
+
+
+def main() -> None:
+    compute_twist_profiles()
+
+
+if __name__ == "__main__":
+    main()

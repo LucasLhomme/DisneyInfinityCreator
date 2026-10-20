@@ -9,12 +9,17 @@ Method: "Robust Skin Weights Transfer via Weight Inpainting" (Abdrashitov, Raich
 re-implementation with no compiled dependency (no libigl, no robust-laplacian, no Blender add-on): the inpainting
 minimises a bi-Laplacian energy on a nearest-neighbour graph of the vertices, which also bridges loose parts.
 """
+from __future__ import annotations
+
 import math
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 
 from src.core.base_character import S1_STRIDE, BaseCharacter
+
+if TYPE_CHECKING:
+    from scipy.sparse import spmatrix
 
 Log = Callable[[str], None]
 MAX_DISTANCE = 0.06  # fraction of the model height
@@ -32,18 +37,33 @@ def availability(configured: str = "") -> tuple[bool, str]:
     return True, "ready"
 
 
+def _nearest_segment_bone(
+    point: np.ndarray,
+    seg: dict[str, tuple[np.ndarray, np.ndarray]],
+    names: list[str],
+) -> int:
+    best, best_d = 0, 1e18
+    for bone, (a, b) in seg.items():
+        ab = b - a
+        t = np.clip(np.dot(point - a, ab) / max(np.dot(ab, ab), 1e-12), 0.0, 1.0)
+        d = float(np.linalg.norm(point - (a + t * ab)))
+        if d < best_d:
+            best, best_d = names.index(bone), d
+    return best
+
+
 def _canonical_columns(base: BaseCharacter, names: list[str]) -> np.ndarray:
     """Canonical bone column (index into `names`) for every palette bone: its own, else the nearest segment."""
     from src.core.skeleton import heat_bones
 
     joints = base.joints
-    seg = {}
+    seg: dict[str, tuple[np.ndarray, np.ndarray]] = {}
     for bone, head, tail, _ in heat_bones():
         h = joints.get(head if head in joints else bone)
         t = joints.get(tail if tail in joints else bone)
         if h is not None and t is not None:
             seg[bone] = (np.asarray(h, float), np.asarray(t, float))
-    own = {}
+    own: dict[int, int] = {}
     for n in names:
         try:
             own[base.bone_index(n)] = names.index(n)
@@ -55,18 +75,13 @@ def _canonical_columns(base: BaseCharacter, names: list[str]) -> np.ndarray:
         if i in own:
             out[i] = own[i]
             continue
-        best, best_d = 0, 1e18
-        for bone, (a, b) in seg.items():
-            ab = b - a
-            t = np.clip(np.dot(p - a, ab) / max(np.dot(ab, ab), 1e-12), 0, 1)
-            d = np.linalg.norm(p - (a + t * ab))
-            if d < best_d:
-                best, best_d = names.index(bone), d
-        out[i] = best
+        out[i] = _nearest_segment_bone(p, seg, names)
     return out
 
 
-def donor_mesh(base: BaseCharacter, anchors: dict, names: list[str]):
+def donor_mesh(
+    base: BaseCharacter, anchors: dict[str, np.ndarray], names: list[str]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """The base body in the model's T-pose space, with weights over the canonical bones `names`.
 
     Returns (vertices, triangles, normals, weights (V, len(names)))."""
@@ -94,7 +109,7 @@ def donor_mesh(base: BaseCharacter, anchors: dict, names: list[str]):
 K_NEIGHBOURS = 10
 
 
-def _graph_laplacian(points: np.ndarray, known: np.ndarray, k: int = K_NEIGHBOURS):
+def _graph_laplacian(points: np.ndarray, known: np.ndarray, k: int = K_NEIGHBOURS) -> spmatrix:
     """Gaussian-weighted k-nearest-neighbour graph Laplacian (symmetric, PSD) of a point set."""
     from scipy.sparse import coo_matrix, diags
     from scipy.sparse.csgraph import connected_components
@@ -111,17 +126,21 @@ def _graph_laplacian(points: np.ndarray, known: np.ndarray, k: int = K_NEIGHBOUR
     # A loose piece far from the body forms its own island: link it to the closest known vertex, otherwise it
     # would get no weights at all.
     count, label = connected_components(adjacency, directed=False)
-    if known.any():
-        known_points, known_index = points[known], np.flatnonzero(known)
-        tree = cKDTree(known_points)
-        for c in range(count):
-            members = np.flatnonzero(label == c)
-            if known[members].any():
-                continue
-            d, j = tree.query(points[members])
-            best = int(np.argmin(d))
-            adjacency[members[best], known_index[j[best]]] = 1.0
-            adjacency[known_index[j[best]], members[best]] = 1.0
+    if not known.any():
+        adjacency = adjacency.tocsr()
+        return diags(np.asarray(adjacency.sum(1)).ravel()) - adjacency
+
+    known_points, known_index = points[known], np.flatnonzero(known)
+    tree = cKDTree(known_points)
+    for c in range(count):
+        members = np.flatnonzero(label == c)
+        if known[members].any():
+            continue
+        d, j = tree.query(points[members])
+        best = int(np.argmin(d))
+        adjacency[members[best], known_index[j[best]]] = 1.0
+        adjacency[known_index[j[best]], members[best]] = 1.0
+
     adjacency = adjacency.tocsr()
     return diags(np.asarray(adjacency.sum(1)).ravel()) - adjacency
 
@@ -148,7 +167,14 @@ def inpaint(points: np.ndarray, weights: np.ndarray, known: np.ndarray) -> np.nd
     return out
 
 
-def transfer(wverts, wfaces, base: BaseCharacter, anchors: dict, names: list[str], log: Log) -> np.ndarray | None:
+def transfer(
+    wverts: np.ndarray,
+    wfaces: np.ndarray,
+    base: BaseCharacter,
+    anchors: dict[str, np.ndarray],
+    names: list[str],
+    log: Log,
+) -> np.ndarray | None:
     """Weights (len(wverts), len(names)) copied from the base body, or None if the transfer is not trustworthy."""
     from scipy.spatial import cKDTree
 

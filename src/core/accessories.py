@@ -5,15 +5,19 @@ weights (the legs would drag it). Two ways to find them: a depth zone behind the
 to the body, as on most game rips) and whole pieces that stick out. The user decides what to do with them:
   ignored  - kept in the model, left out of the measurements, and skinned to follow the torso instead of the legs;
   removed  - left out of the model."""
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 import numpy as np
 
-SLABS = 60
-ZONE_LIMIT = 0.2
+SLABS: int = 60
+ZONE_LIMIT: float = 0.2
 """Default depth behind the front surface (fraction of the height) beyond which a vertex counts as an accessory."""
-FOLLOW_TORSO = {"Thigh": "Hips", "Knee": "Hips", "Ankle": "Hips", "Ball": "Hips",
-                "Clavicle": "Spine3", "Shoulder": "Spine3", "Elbow": "Spine3", "Hand": "Spine3"}
+FOLLOW_TORSO: dict[str, str] = {
+    "Thigh": "Hips", "Knee": "Hips", "Ankle": "Hips", "Ball": "Hips",
+    "Clavicle": "Spine3", "Shoulder": "Spine3", "Elbow": "Spine3", "Hand": "Spine3",
+}
 
 
 @dataclass
@@ -23,7 +27,7 @@ class Finding:
     text: str
 
 
-def strip(vertices: np.ndarray, faces: np.ndarray, mask):
+def strip(vertices: np.ndarray, faces: np.ndarray, mask: np.ndarray | None) -> tuple[np.ndarray, np.ndarray]:
     """(vertices, faces) without the vertices of `mask` (and the faces that use them)."""
     if mask is None or not np.any(mask):
         return vertices, faces

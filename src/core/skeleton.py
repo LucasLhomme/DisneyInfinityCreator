@@ -9,7 +9,7 @@ from dataclasses import dataclass, fields, replace
 
 import numpy as np
 import trimesh
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, QhullError
 
 from src.core.base_character import BaseCharacter
 
@@ -110,7 +110,7 @@ def _body_loop(mesh: trimesh.Trimesh, y: float, keep=None) -> np.ndarray:
         pts = seg[label == lab].reshape(-1, 3)
         try:
             area = float(ConvexHull(pts[:, [0, 2]]).volume)  # 2-D hull: .volume is the area
-        except Exception:  # degenerate (flat or collinear) outline: a cape edge-on, a strand
+        except (QhullError, ValueError):  # degenerate (flat or collinear) outline: a cape edge-on, a strand
             area = 0.0
         outlines.append((area, pts))
     top = max(o[0] for o in outlines)

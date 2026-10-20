@@ -90,7 +90,7 @@ def base_shape(base: BaseCharacter) -> tuple[np.ndarray, float]:
 def usable(base: BaseCharacter) -> bool:
     try:
         return bool(base.supported and base.body_primitive.standard)
-    except Exception:
+    except (AttributeError, ValueError, KeyError):
         return False
 
 
@@ -146,7 +146,7 @@ def figure_features(entries, work: Path, progress=lambda text: None) -> dict[str
                     features, angle = base_shape(base)
                     row = {"features": features.tolist(), "angle": angle, "model": base.model,
                            "name": base.display_name}
-            except Exception:
+            except (OSError, ValueError, KeyError, AttributeError):
                 row = {"skip": True}
             cache[entry.actor] = row
             changed = True
@@ -196,7 +196,7 @@ def rank_bases(source, entries, work: Path, progress=lambda text: None, shortlis
             rig = build_rig(model, build_anchors(props, base), base, blender, work, lambda text: None, None,
                             weight_transfer, fingers)
             report = deformation_report(rig)
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError, KeyError) as exc:
             progress(f"  {name}: skipped ({exc})")
             continue
         match = shape_match(distance)

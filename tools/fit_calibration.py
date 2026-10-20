@@ -73,8 +73,13 @@ def samples():
 
 def truth(props, joints, exact):
     h = props.height
-    both = lambda n: (joints[f"{n}_Left"] + joints[f"{n}_Right"] * [-1, 1, 1]) / 2  # noqa: E731
-    have = lambda *n: all(f"{x}_Left" in exact and f"{x}_Right" in exact for x in n)  # noqa: E731
+
+    def both(n: str) -> np.ndarray:
+        return (joints[f"{n}_Left"] + joints[f"{n}_Right"] * [-1, 1, 1]) / 2
+
+    def have(*n: str) -> bool:
+        return all(f"{x}_Left" in exact and f"{x}_Right" in exact for x in n)
+
     out = {}
     if have("Shoulder"):
         s = both("Shoulder")
